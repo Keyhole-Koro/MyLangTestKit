@@ -86,8 +86,9 @@ def run_redirect_fixture() -> None:
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
     )
-    if result.returncode != 0 or "[PASS] facade_redirect" not in result.stdout:
-        raise RuntimeError(f"facade_redirect: expected test to pass\n{result.stdout}")
+    required = ("[PASS] spy_redirect", "[PASS] mock_sequences")
+    if result.returncode != 0 or not all(marker in result.stdout for marker in required):
+        raise RuntimeError(f"facade_redirect: expected annotated tests to pass\n{result.stdout}")
 
 
 def main() -> int:

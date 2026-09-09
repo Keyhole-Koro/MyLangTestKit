@@ -13,9 +13,8 @@ i32 static_word(i32 value) {
     return value + 1;
 }
 
-test("facade_redirect", {
-    step: 100000;
-}, () => {
+/*@Test "spy_redirect" { step: 100000; }*/
+void spy_redirect() {
     mock.spy(read_word)
         .when(2, mock.any())
         .ret(-1);
@@ -25,7 +24,10 @@ test("facade_redirect", {
     assert.assert_true(mock.calls(read_word) == 2, "spy records every call");
     assert.assert_true(mock.called_with(read_word, 2, mock.any()), "spy records mocked arguments");
     assert.assert_true(mock.called_with(read_word, 3, 4), "spy records original arguments");
+}
 
+/*@Test "mock_sequences"*/
+void mock_sequences() {
     mock.of(static_word)
         .when(5)
         .ret(77)
@@ -34,4 +36,4 @@ test("facade_redirect", {
     assert.assert_true(static_word(5) == 88, "mock returns chained value");
     assert.assert_true(mock.calls(static_word) == 2, "mock records every call");
     assert.assert_true(mock.called_with(static_word, 5), "mock records configured argument");
-});
+}
