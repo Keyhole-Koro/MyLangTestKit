@@ -24,7 +24,10 @@ i32 kernel_main() {
     assert.assert_true(out == 5, "second return");
     assert.assert_true(disk.dispatch(7, &out), "third dispatch");
     assert.assert_true(out == 5, "last return repeats");
-    assert.assert_true(disk.verify_times(3), "call history verification");
+    assert.assert_true(disk.dispatch_rule(0, 7, &out), "selected rule dispatch");
+    assert.assert_true(out == 5, "selected rule return");
+    assert.assert_false(disk.dispatch_rule(1, 7, &out), "invalid selected rule fails");
+    assert.assert_true(disk.verify_times(4), "call history verification");
     disk.clear_calls();
     assert.assert_true(disk.call_count() == 0, "clear calls");
     assert.assert_true(disk.dispatch(7, &out), "rule remains after clear calls");

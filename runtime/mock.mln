@@ -93,14 +93,24 @@ i32 (ref Mock<Args, Ret> self) dispatch(Args args, Ret* out) {
         remaining = remaining - 1;
         Rule<Args, Ret>* rule = self->rules + remaining;
         if (rule->enabled != 0) {
-            if (return_sequence_next<Ret>(&rule->returns, out) == 0) return 0;
-            rule->hit_count = rule->hit_count + 1;
-            i32 call_index = call_history_begin<Args, Ret>(self->history, args, 2);
-            if (call_index >= 0) call_history_complete<Args, Ret>(self->history, call_index, *out);
-            return 1;
+            return self.dispatch_rule(remaining, args, out);
         }
     }
     return 0;
+}
+
+// Typed facades select a rule after evaluating their target-specific matcher
+// fields, then call this method. Keeping that selection out of `Rule` avoids a
+// user-visible Args struct while retaining one shared runtime for every target.
+i32 (ref Mock<Args, Ret> self) dispatch_rule(i32 index, Args args, Ret* out) {
+    if (self->mode == 0 || index < 0 || index >= self->rule_count) return 0;
+    Rule<Args, Ret>* rule = self->rules + index;
+    if (rule->enabled == 0) return 0;
+    if (return_sequence_next<Ret>(&rule->returns, out) == 0) return 0;
+    rule->hit_count = rule->hit_count + 1;
+    i32 call_index = call_history_begin<Args, Ret>(self->history, args, 2);
+    if (call_index >= 0) call_history_complete<Args, Ret>(self->history, call_index, *out);
+    return 1;
 }
 
 i32 (ref Mock<Args, Ret> self) call_count() {

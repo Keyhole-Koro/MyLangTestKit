@@ -30,8 +30,9 @@ The compiler-facing generic core is available now:
   and `then_ret(...)` form a fluent sequence; the last configured return is
   repeated. `clear_calls()` preserves configured rules and return cursors,
   while `reset()` disables the target and removes every rule.
-- Mock mode (`1`) and Spy mode (`2`). A generated facade performs argument
-  matching and chooses the original fallback for an unmatched Spy call; the
+- Mock mode (`1`) and Spy mode (`2`). A generated facade evaluates its typed
+  matcher fields, calls `dispatch_rule(index, args, out)` for the selected
+  rule, and chooses the original fallback for an unmatched Spy call. The
   shared runtime owns configured-return dispatch and history.
 
 These are runtime building blocks, not the public testing syntax. The public
