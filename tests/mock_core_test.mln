@@ -1,6 +1,7 @@
 import assert from "../../MyStdLib/assert.mln";
 import { Matcher, any, eq, matches, ne } from "../runtime/matcher.mln";
 import { ReturnSequence, return_sequence_init, return_sequence_next, return_sequence_push } from "../runtime/return_sequence.mln";
+import { CallHistory, call_history_args_at, call_history_begin, call_history_complete, call_history_count, call_history_init, call_history_path_at, call_history_return_at } from "../runtime/history.mln";
 
 extern void __mlt_require_abi_v1();
 extern void testkit_pass(char* name);
@@ -29,6 +30,38 @@ i32 kernel_main() {
     assert.assert_true(out == 5, "second return value");
     assert.assert_true(return_sequence_next<i32>(&sequence, &out), "read repeated return");
     assert.assert_true(out == 5, "last return repeats");
+
+    CallHistory<i32, i32> history;
+    i32 args_storage[2];
+    i32 returns_storage[2];
+    i32 paths_storage[2];
+    i32 complete_storage[2];
+    call_history_init<i32, i32>(
+        &history,
+        args_storage,
+        returns_storage,
+        paths_storage,
+        complete_storage,
+        2
+    );
+    i32 call_index = call_history_begin<i32, i32>(&history, 7, 2);
+    assert.assert_true(call_index == 0, "first call index");
+    assert.assert_true(call_history_count<i32, i32>(&history) == 1, "call count");
+
+    i32* stored_arg = call_history_args_at<i32, i32>(&history, 0);
+    assert.assert_true(stored_arg != (i32*)0, "stored args are available");
+    assert.assert_true(*stored_arg == 7, "stored argument");
+    assert.assert_false(call_history_return_at<i32, i32>(&history, 0, &out), "incomplete call has no return");
+
+    i32 path = 0;
+    assert.assert_true(call_history_path_at<i32, i32>(&history, 0, &path), "stored path is available");
+    assert.assert_true(path == 2, "stored path");
+    assert.assert_true(call_history_complete<i32, i32>(&history, call_index, 11), "complete call");
+    assert.assert_true(call_history_return_at<i32, i32>(&history, 0, &out), "completed call has return");
+    assert.assert_true(out == 11, "stored return");
+    assert.assert_false(call_history_path_at<i32, i32>(&history, 1, &path), "out of range path fails");
+    assert.assert_true(call_history_begin<i32, i32>(&history, 8, 3) == 1, "second call index");
+    assert.assert_true(call_history_begin<i32, i32>(&history, 9, 3) == -1, "history capacity is enforced");
 
     testkit_pass("mock_core_test");
     return 0;

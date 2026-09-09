@@ -18,6 +18,7 @@ RUNTIME = [
     KIT_ROOT / "runtime/verdict.mln",
     KIT_ROOT / "runtime/matcher.mln",
     KIT_ROOT / "runtime/return_sequence.mln",
+    KIT_ROOT / "runtime/history.mln",
     KIT_ROOT / "platform/mycomputer/verdict.mln",
 ]
 

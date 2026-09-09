@@ -22,6 +22,9 @@ The compiler-facing generic core is available now:
   `matches<T>(matcher, value)`.
 - `mock.ReturnSequence<T>`, which supplies configured return values in order
   and repeats its final value after the sequence is exhausted.
+- `mock.CallHistory<Args, Ret>`, which records packed arguments before
+  dispatch and marks the call complete with its path and return value later;
+  generated glue owns the bounded backing storage.
 
 These are runtime building blocks, not the public testing syntax.  The public
 `mock.of(target).when(...).ret(...)` / `mock.spy(target)` DSL will be lowered

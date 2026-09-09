@@ -1,0 +1,100 @@
+package mock;
+
+// Caller-owned call history for one generated mock dispatcher. Args is the
+// compiler-generated packed argument struct; Ret is the target's scalar or
+// pointer return type. A call is begun before dispatching to a rule/original
+// implementation and completed only after that path returns.
+export struct CallHistory<Args, Ret> {
+    Args* args;
+    Ret* returns;
+    i32* paths;
+    i32* complete;
+    i32 count;
+    i32 capacity;
+};
+
+export void call_history_init<Args, Ret>(
+    CallHistory<Args, Ret>* history,
+    Args* args_storage,
+    Ret* return_storage,
+    i32* path_storage,
+    i32* complete_storage,
+    i32 capacity
+) {
+    history->args = args_storage;
+    history->returns = return_storage;
+    history->paths = path_storage;
+    history->complete = complete_storage;
+    history->count = 0;
+    history->capacity = capacity;
+}
+
+// Returns the zero-based record index, or -1 when the history is full.
+// `path` is an ABI-defined MockCallPath value supplied by generated glue.
+export i32 call_history_begin<Args, Ret>(CallHistory<Args, Ret>* history, Args args, i32 path) {
+    if (history->count >= history->capacity) {
+        return -1;
+    }
+
+    i32 index = history->count;
+    Args* stored_args = history->args;
+    i32* stored_paths = history->paths;
+    i32* stored_complete = history->complete;
+    stored_args[index] = args;
+    stored_paths[index] = path;
+    stored_complete[index] = 0;
+    history->count = index + 1;
+    return index;
+}
+
+// Marks a previously begun call as complete and stores its scalar/pointer
+// return value. It returns 0 for an invalid index.
+export i32 call_history_complete<Args, Ret>(CallHistory<Args, Ret>* history, i32 index, Ret value) {
+    if (index < 0 || index >= history->count) {
+        return 0;
+    }
+
+    Ret* stored_returns = history->returns;
+    i32* stored_complete = history->complete;
+    stored_returns[index] = value;
+    stored_complete[index] = 1;
+    return 1;
+}
+
+export i32 call_history_count<Args, Ret>(CallHistory<Args, Ret>* history) {
+    return history->count;
+}
+
+// Returns null for an invalid index. The returned Args points into the
+// history and remains valid until the history is reset or the test ends.
+export Args* call_history_args_at<Args, Ret>(CallHistory<Args, Ret>* history, i32 index) {
+    if (index < 0 || index >= history->count) {
+        return (Args*)0;
+    }
+    Args* stored_args = history->args;
+    return stored_args + index;
+}
+
+export i32 call_history_path_at<Args, Ret>(CallHistory<Args, Ret>* history, i32 index, i32* out) {
+    if (index < 0 || index >= history->count) {
+        return 0;
+    }
+    i32* stored_paths = history->paths;
+    *out = stored_paths[index];
+    return 1;
+}
+
+// Returns 1 only if a completed call had a return value available in `out`.
+export i32 call_history_return_at<Args, Ret>(CallHistory<Args, Ret>* history, i32 index, Ret* out) {
+    if (index < 0 || index >= history->count) {
+        return 0;
+    }
+
+    i32* stored_complete = history->complete;
+    if (stored_complete[index] == 0) {
+        return 0;
+    }
+    Ret* stored_returns = history->returns;
+    *out = stored_returns[index];
+    return 1;
+}
