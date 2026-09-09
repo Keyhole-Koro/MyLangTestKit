@@ -1,0 +1,128 @@
+package mock;
+
+import { CallHistory, call_history_begin, call_history_complete, call_history_count } from "history.mln";
+import { ReturnSequence, return_sequence_init, return_sequence_next, return_sequence_push } from "return_sequence.mln";
+
+export struct Rule<Args, Ret> {
+    i32 enabled;
+    i32 hit_count;
+    ReturnSequence<Ret> returns;
+};
+
+// The shared, allocation-free state engine. Generated target facades own
+// typed argument matchers; this generic layer owns rules, return sequences
+// and call recording.
+export struct Mock<Args, Ret> {
+    i32 mode;
+    Rule<Args, Ret>* rules;
+    i32 rule_count;
+    i32 rule_capacity;
+    CallHistory<Args, Ret>* history;
+};
+
+// `mode` is intentionally a plain i32 at the ABI boundary: 0 = OFF,
+// 1 = MOCK, 2 = SPY. Generated typed facades use the same values when deciding
+// whether an unmatched call invokes the original target or reports a failure.
+
+// Keep this at receiver + two parameters. The current kernel ABI has three
+// register argument slots, and a Mock is deliberately fixed-capacity so the
+// test DSL never needs to depend on stack-passed arguments.
+void (ref Mock<Args, Ret> self) init(Rule<Args, Ret>* rules,
+                                     CallHistory<Args, Ret>* history) {
+    self->mode = 1;
+    self->rules = rules;
+    self->rule_count = 0;
+    self->rule_capacity = 8;
+    self->history = history;
+}
+
+void (ref Mock<Args, Ret> self) enable_mock() {
+    self->mode = 1;
+}
+
+void (ref Mock<Args, Ret> self) enable_spy() {
+    self->mode = 2;
+}
+
+void (ref Mock<Args, Ret> self) disable() {
+    self->mode = 0;
+}
+
+i32 (ref Mock<Args, Ret> self) is_mock() {
+    return self->mode == 1;
+}
+
+i32 (ref Mock<Args, Ret> self) is_spy() {
+    return self->mode == 2;
+}
+
+Rule<Args, Ret>* (ref Mock<Args, Ret> self) add_rule() {
+    if (self->rule_count >= self->rule_capacity) return (Rule<Args, Ret>*)0;
+    Rule<Args, Ret>* rule = self->rules + self->rule_count;
+    rule->enabled = 1;
+    rule->hit_count = 0;
+    return_sequence_init<Ret>(&rule->returns);
+    self->rule_count = self->rule_count + 1;
+    return rule;
+}
+
+// The generic engine deliberately has no target arguments to match. Typed
+// facades generated from a target signature configure their matcher fields,
+// then delegate to this rule allocator. Keeping this zero-argument form is
+// useful for handwritten low-level tests and preserves the fluent chain.
+Rule<Args, Ret>* (ref Mock<Args, Ret> self) when() {
+    return self.add_rule();
+}
+
+Rule<Args, Ret>* (Rule<Args, Ret>* self) ret(Ret value) {
+    if (return_sequence_push<Ret>(&self->returns, value) == 0) return (Rule<Args, Ret>*)0;
+    return self;
+}
+
+Rule<Args, Ret>* (Rule<Args, Ret>* self) then_ret(Ret value) {
+    return self.ret(value);
+}
+
+// The compiler-generated facade invokes this only after matcher selection.
+// `remaining != 0` is intentional: VM relational operations are word based,
+// so a descending signed index must not be used as the loop predicate.
+i32 (ref Mock<Args, Ret> self) dispatch(Args args, Ret* out) {
+    if (self->mode == 0) return 0;
+    i32 remaining = self->rule_count;
+    while (remaining != 0) {
+        remaining = remaining - 1;
+        Rule<Args, Ret>* rule = self->rules + remaining;
+        if (rule->enabled != 0) {
+            if (return_sequence_next<Ret>(&rule->returns, out) == 0) return 0;
+            rule->hit_count = rule->hit_count + 1;
+            i32 call_index = call_history_begin<Args, Ret>(self->history, args, 2);
+            if (call_index >= 0) call_history_complete<Args, Ret>(self->history, call_index, *out);
+            return 1;
+        }
+    }
+    return 0;
+}
+
+i32 (ref Mock<Args, Ret> self) call_count() {
+    return call_history_count<Args, Ret>(self->history);
+}
+
+i32 (ref Mock<Args, Ret> self) verify_times(i32 expected) {
+    return self.call_count() == expected;
+}
+
+void (ref Mock<Args, Ret> self) clear_calls() {
+    self->history->count = 0;
+    i32 remaining = self->rule_count;
+    while (remaining != 0) {
+        remaining = remaining - 1;
+        Rule<Args, Ret>* rule = self->rules + remaining;
+        rule->hit_count = 0;
+    }
+}
+
+void (ref Mock<Args, Ret> self) reset() {
+    self->mode = 0;
+    self->rule_count = 0;
+    self.clear_calls();
+}

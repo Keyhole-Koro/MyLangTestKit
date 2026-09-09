@@ -25,12 +25,27 @@ The compiler-facing generic core is available now:
 - `mock.CallHistory<Args, Ret>`, which records packed arguments before
   dispatch and marks the call complete with its path and return value later;
   generated glue owns the bounded backing storage.
+- `mock.Mock<Args, Ret>` and `Rule<Args, Ret>`, an allocation-free rule
+  engine with eight rules and eight return values per rule. `when().ret(...)`
+  and `then_ret(...)` form a fluent sequence; the last configured return is
+  repeated. `clear_calls()` preserves configured rules and return cursors,
+  while `reset()` disables the target and removes every rule.
+- Mock mode (`1`) and Spy mode (`2`). A generated facade performs argument
+  matching and chooses the original fallback for an unmatched Spy call; the
+  shared runtime owns configured-return dispatch and history.
 
-These are runtime building blocks, not the public testing syntax.  The public
-`mock.of(target).when(...).ret(...)` / `mock.spy(target)` DSL will be lowered
-by MyLangCompiler into typed calls to this core.  Keeping target-specific
-argument packing and dispatch generation in the compiler means test authors
-do not need to define a `Mock` struct for every function signature.
+These are runtime building blocks, not the public testing syntax. The public
+`mock.of(target).when(...).ret(...)` / `mock.spy(target)` DSL is lowered by
+MyLangCompiler into typed calls to this core. Keeping target-specific argument
+packing and dispatch generation in the compiler means test authors do not
+define an `Args` struct or a target-specific `Mock` struct.
+
+The linker provides the complementary test-build primitive
+`--redirect <original>=<entry>`. It redirects only direct-call relocations;
+the object defining `<entry>` keeps calls to `<original>` intact, allowing a
+Spy entry to invoke the original function without recursion. Runtime mode and
+rules change inside one linked test binary, so test cases do not relink when
+switching configured behavior.
 
 ## Verify
 

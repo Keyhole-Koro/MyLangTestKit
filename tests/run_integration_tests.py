@@ -68,6 +68,8 @@ def main() -> int:
     run_fixture("verdict_test", "TEST_PASS:verdict_test")
     run_fixture("assert_fail_test", "TEST_FAIL:expected assertion failure")
     run_fixture("mock_core_test", "TEST_PASS:mock_core_test")
+    run_fixture("pointer_method_chain_test", "TEST_PASS:pointer_method_chain_test")
+    run_fixture("mock_engine_test", "TEST_PASS:mock_engine_test")
     print("[PASS] MyLangTestKit ABI v1")
     return 0
 

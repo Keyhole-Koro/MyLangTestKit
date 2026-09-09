@@ -1,0 +1,26 @@
+import assert from "../../MyStdLib/assert.mln";
+
+extern void __mlt_require_abi_v1();
+extern void testkit_pass(char* name);
+
+struct Box<T> {
+    T value;
+};
+
+Box<U>* (Box<U>* self) again() {
+    return self;
+}
+
+i32 (Box<U>* self) get() {
+    return self->value;
+}
+
+i32 kernel_main() {
+    __mlt_require_abi_v1();
+    Box<i32> box;
+    box.value = 7;
+    Box<i32>* ptr = &box;
+    assert.assert_true(ptr.again().get() == 7, "pointer receiver chain");
+    testkit_pass("pointer_method_chain_test");
+    return 0;
+}

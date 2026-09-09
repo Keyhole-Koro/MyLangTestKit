@@ -1,0 +1,41 @@
+import assert from "../../MyStdLib/assert.mln";
+import { Mock } from "../runtime/mock.mln";
+
+extern void __mlt_require_abi_v1();
+extern void testkit_pass(char* name);
+
+i32 kernel_main() {
+    __mlt_require_abi_v1();
+    Mock<i32, i32> disk;
+    Rule<i32, i32> rules[8];
+    CallHistory<i32, i32> history;
+    i32 args_storage[4]; i32 returns_storage[4];
+    i32 paths_storage[4]; i32 complete_storage[4];
+    history.args = args_storage; history.returns = returns_storage;
+    history.paths = paths_storage; history.complete = complete_storage;
+    history.count = 0; history.capacity = 4;
+
+    disk.init(rules, &history);
+    disk.when().ret(3).then_ret(5);
+    i32 out = 0;
+    assert.assert_true(disk.dispatch(7, &out), "first dispatch");
+    assert.assert_true(out == 3, "first return");
+    assert.assert_true(disk.dispatch(7, &out), "second dispatch");
+    assert.assert_true(out == 5, "second return");
+    assert.assert_true(disk.dispatch(7, &out), "third dispatch");
+    assert.assert_true(out == 5, "last return repeats");
+    assert.assert_true(disk.verify_times(3), "call history verification");
+    disk.clear_calls();
+    assert.assert_true(disk.call_count() == 0, "clear calls");
+    assert.assert_true(disk.dispatch(7, &out), "rule remains after clear calls");
+    assert.assert_true(out == 5, "return cursor remains after clear calls");
+    assert.assert_true(disk.call_count() == 1, "new call recorded after clear calls");
+    disk.enable_spy();
+    assert.assert_true(disk.is_spy(), "spy mode");
+    disk.enable_mock();
+    assert.assert_true(disk.is_mock(), "mock mode");
+    disk.reset();
+    assert.assert_false(disk.dispatch(7, &out), "reset leaves no matching rule");
+    testkit_pass("mock_engine_test");
+    return 0;
+}
