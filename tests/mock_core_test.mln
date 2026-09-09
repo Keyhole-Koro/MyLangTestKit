@@ -1,0 +1,35 @@
+import assert from "../../MyStdLib/assert.mln";
+import { Matcher, any, eq, matches, ne } from "../runtime/matcher.mln";
+import { ReturnSequence, return_sequence_init, return_sequence_next, return_sequence_push } from "../runtime/return_sequence.mln";
+
+extern void __mlt_require_abi_v1();
+extern void testkit_pass(char* name);
+
+i32 kernel_main() {
+    __mlt_require_abi_v1();
+
+    Matcher<i32> any_value = any<i32>();
+    Matcher<i32> equals_7 = eq<i32>(7);
+    Matcher<i32> not_7 = ne<i32>(7);
+    assert.assert_true(matches<i32>(&any_value, -1), "any should match");
+    assert.assert_true(matches<i32>(&equals_7, 7), "eq should match expected value");
+    assert.assert_false(matches<i32>(&equals_7, 8), "eq should reject another value");
+    assert.assert_true(matches<i32>(&not_7, 8), "ne should match another value");
+    assert.assert_false(matches<i32>(&not_7, 7), "ne should reject expected value");
+
+    ReturnSequence<i32> sequence;
+    return_sequence_init<i32>(&sequence);
+    assert.assert_true(return_sequence_push<i32>(&sequence, 3), "push first return");
+    assert.assert_true(return_sequence_push<i32>(&sequence, 5), "push second return");
+
+    i32 out = 0;
+    assert.assert_true(return_sequence_next<i32>(&sequence, &out), "read first return");
+    assert.assert_true(out == 3, "first return value");
+    assert.assert_true(return_sequence_next<i32>(&sequence, &out), "read second return");
+    assert.assert_true(out == 5, "second return value");
+    assert.assert_true(return_sequence_next<i32>(&sequence, &out), "read repeated return");
+    assert.assert_true(out == 5, "last return repeats");
+
+    testkit_pass("mock_core_test");
+    return 0;
+}

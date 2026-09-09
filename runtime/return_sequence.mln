@@ -1,0 +1,44 @@
+package mock;
+
+// A rule owns one sequence.  It does not allocate from the heap, so mocks can
+// exercise the allocator itself.  Once consumed, the last return repeats.
+export struct ReturnSequence<T> {
+    T values[8];
+    i32 count;
+    i32 cursor;
+};
+
+export void return_sequence_init<T>(ReturnSequence<T>* sequence) {
+    sequence->count = 0;
+    sequence->cursor = 0;
+}
+
+// Returns 1 on success and 0 when the fixed capacity is exhausted.
+export i32 return_sequence_push<T>(ReturnSequence<T>* sequence, T value) {
+    if (sequence->count >= 8) {
+        return 0;
+    }
+    T* values = sequence->values;
+    values[sequence->count] = value;
+    sequence->count = sequence->count + 1;
+    return 1;
+}
+
+// Writes the selected value to out and returns 1.  An empty sequence returns
+// 0 and leaves out untouched.
+export i32 return_sequence_next<T>(ReturnSequence<T>* sequence, T* out) {
+    if (sequence->count == 0) {
+        return 0;
+    }
+
+    i32 index = sequence->cursor;
+    if (index >= sequence->count) {
+        index = sequence->count - 1;
+    }
+    T* values = sequence->values;
+    *out = values[index];
+    if (sequence->cursor < sequence->count - 1) {
+        sequence->cursor = sequence->cursor + 1;
+    }
+    return 1;
+}
