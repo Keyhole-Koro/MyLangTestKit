@@ -13,6 +13,8 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 KIT_ROOT = Path(__file__).resolve().parents[1]
 BUILD = REPO_ROOT / "qa/runners/build_toolchain.py"
 EMU = REPO_ROOT / "runtime/MyEmulator/target/release/myemu"
+TESTER_ROOT = REPO_ROOT / "toolchain/MyLangTester"
+TESTER = TESTER_ROOT / "build/mytest"
 RUNTIME = [
     KIT_ROOT / "runtime/abi.mln",
     KIT_ROOT / "runtime/verdict.mln",
@@ -64,12 +66,37 @@ def run_fixture(name: str, marker: str) -> None:
             )
 
 
+def run_redirect_fixture() -> None:
+    """Exercise the compiler, runner, linker and facade as one test build."""
+    build_tester = subprocess.run(
+        ["make", "-C", str(TESTER_ROOT), "all"],
+        cwd=REPO_ROOT,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+    )
+    if build_tester.returncode != 0:
+        raise RuntimeError(f"facade_redirect: mytest build failed\n{build_tester.stdout}")
+
+    test = KIT_ROOT / "tests/facade_redirect.test.mln"
+    result = subprocess.run(
+        [str(TESTER), str(test)],
+        cwd=REPO_ROOT,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+    )
+    if result.returncode != 0 or "[PASS] facade_redirect" not in result.stdout:
+        raise RuntimeError(f"facade_redirect: expected test to pass\n{result.stdout}")
+
+
 def main() -> int:
     run_fixture("verdict_test", "TEST_PASS:verdict_test")
     run_fixture("assert_fail_test", "TEST_FAIL:expected assertion failure")
     run_fixture("mock_core_test", "TEST_PASS:mock_core_test")
     run_fixture("pointer_method_chain_test", "TEST_PASS:pointer_method_chain_test")
     run_fixture("mock_engine_test", "TEST_PASS:mock_engine_test")
+    run_redirect_fixture()
     print("[PASS] MyLangTestKit ABI v1")
     return 0
 
