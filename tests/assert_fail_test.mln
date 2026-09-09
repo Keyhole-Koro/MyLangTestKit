@@ -1,0 +1,9 @@
+import assert from "../../MyStdLib/assert.mln";
+
+extern void __mlt_require_abi_v1();
+
+i32 kernel_main() {
+    __mlt_require_abi_v1();
+    assert.assert_true(0, "expected assertion failure");
+    return 0;
+}

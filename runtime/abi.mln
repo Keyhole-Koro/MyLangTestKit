@@ -1,0 +1,6 @@
+// MyLangTestKit ABI v1 marker.
+//
+// Compiler-generated support references this symbol.  A missing or renamed
+// symbol turns an incompatible compiler/TestKit pair into a link error.
+void __mlt_require_abi_v1() {
+}

@@ -1,0 +1,14 @@
+import debug from "../../../../system/MyKernel/src/debug/debug.mln";
+import { halt_cpu } from "../../../../system/MyKernel/src/arch/halt.masm";
+
+void __mlt_platform_pass(char* name) {
+    debug.print("TEST_PASS:");
+    debug.println(name);
+    halt_cpu();
+}
+
+void __mlt_platform_fail(char* reason) {
+    debug.print("TEST_FAIL:");
+    debug.println(reason);
+    halt_cpu();
+}
