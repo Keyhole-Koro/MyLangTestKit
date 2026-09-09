@@ -27,6 +27,10 @@ i32 mock_rule_args[192];
 i32 mock_rule_return_counts[64];
 i32 mock_rule_returns[512];
 i32 mock_rule_cursors[64];
+// Calls are recorded by the generated target entries. Keep the most recent
+// sixteen argument triples per target, while preserving the full call count.
+i32 mock_call_counts[8];
+i32 mock_call_args[384];
 TargetMock mock_handles[8];
 TargetRule mock_rule_handles[64];
 
@@ -37,6 +41,7 @@ export i32 any() { return -2147483647; }
 i32 rule_index(i32 slot, i32 rule) { return slot * 8 + rule; }
 i32 rule_arg_index(i32 slot, i32 rule, i32 arg) { return rule_index(slot, rule) * 3 + arg; }
 i32 rule_return_index(i32 slot, i32 rule, i32 value) { return rule_index(slot, rule) * 8 + value; }
+i32 call_arg_index(i32 slot, i32 call, i32 arg) { return (slot * 16 + call) * 3 + arg; }
 
 i32 find_slot(i32 target) {
     i32 index = 0;
@@ -68,6 +73,57 @@ export TargetMock* spy(i32 fn) {
     TargetMock* handle = target(fn);
     if (handle != (TargetMock*)0) mock_modes[handle->slot] = 2;
     return handle;
+}
+
+// Called by the generated entry before dispatch. r5-r7 are copied into the
+// entry frame first, so recording may freely use normal call-clobbered ABI
+// registers. `calls` is exact; `called_with` searches the latest sixteen.
+export void record(i32 a, i32 b, i32 c) {
+    i32 slot = find_slot(mock_active_target);
+    if (slot < 0) return;
+    i32 call = mock_call_counts[slot] & 15;
+    mock_call_args[call_arg_index(slot, call, 0)] = a;
+    mock_call_args[call_arg_index(slot, call, 1)] = b;
+    mock_call_args[call_arg_index(slot, call, 2)] = c;
+    mock_call_counts[slot] = mock_call_counts[slot] + 1;
+}
+
+export i32 calls(i32 target) {
+    i32 slot = find_slot(target);
+    if (slot < 0) return 0;
+    return mock_call_counts[slot];
+}
+
+// Match the supplied prefix of a recorded call. This lets callers verify
+// functions with zero through three word arguments without declaring Args.
+export i32 called_with(i32 target, rest args) {
+    if (args.len > 3) return 0;
+    i32 slot = find_slot(target);
+    if (slot < 0) return 0;
+    i32 count = mock_call_counts[slot];
+    if (count > 16) count = 16;
+    i32 call = 0;
+    while (call < count) {
+        i32 matched = 1;
+        if (args.len > 0) {
+            i32 expected = args[0];
+            i32 actual = mock_call_args[call_arg_index(slot, call, 0)];
+            if (expected != any() && expected != actual) matched = 0;
+        }
+        if (args.len > 1) {
+            i32 expected = args[1];
+            i32 actual = mock_call_args[call_arg_index(slot, call, 1)];
+            if (expected != any() && expected != actual) matched = 0;
+        }
+        if (args.len > 2) {
+            i32 expected = args[2];
+            i32 actual = mock_call_args[call_arg_index(slot, call, 2)];
+            if (expected != any() && expected != actual) matched = 0;
+        }
+        if (matched != 0) return 1;
+        call = call + 1;
+    }
+    return 0;
 }
 
 TargetRule* (TargetMock* self) when(rest args) {

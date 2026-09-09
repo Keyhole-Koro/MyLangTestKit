@@ -22,6 +22,9 @@ test("facade_redirect", {
 
     assert.assert_true(read_via_service(2, 99) == -1, "mocked nested target return");
     assert.assert_true(read_via_service(3, 4) == 7, "spy falls back to original target");
+    assert.assert_true(mock.calls(read_word) == 2, "spy records every call");
+    assert.assert_true(mock.called_with(read_word, 2, mock.any()), "spy records mocked arguments");
+    assert.assert_true(mock.called_with(read_word, 3, 4), "spy records original arguments");
 
     mock.of(static_word)
         .when(5)
@@ -29,4 +32,6 @@ test("facade_redirect", {
         .then_ret(88);
     assert.assert_true(static_word(5) == 77, "mock returns first configured value");
     assert.assert_true(static_word(5) == 88, "mock returns chained value");
+    assert.assert_true(mock.calls(static_word) == 2, "mock records every call");
+    assert.assert_true(mock.called_with(static_word, 5), "mock records configured argument");
 });

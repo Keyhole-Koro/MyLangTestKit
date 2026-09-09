@@ -47,6 +47,17 @@ available alongside exact-value matches. An unmatched `mock.of` call fails the
 test; an unmatched `mock.spy` call reaches the original function. `ret(value)`
 starts a configured return sequence and `then_ret(value)` appends to it.
 
+Every intercepted call is observable without an `Args` declaration:
+
+```mylang
+assert.assert_true(mock.calls(ssd.read_block) == 2, "two reads");
+assert.assert_true(mock.called_with(ssd.read_block, 7, mock.any()), "read block 7");
+```
+
+`calls(target)` returns the exact total. `called_with(target, ...)` searches
+the latest sixteen calls and matches the supplied argument prefix (up to three
+arguments); `mock.any()` can be used in any supplied position.
+
 The compiler and linker provide complementary test-build primitives:
 `--redirect-call <original>=<entry>` makes even same-module direct calls
 linkable to an entry, and linker `--redirect <original>=<entry>` redirects
