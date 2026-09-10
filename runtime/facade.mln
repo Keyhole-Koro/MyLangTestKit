@@ -3,8 +3,10 @@ package mock;
 // Public, target-agnostic facade used by test sources. MyLangTester emits one
 // entry point per `of(target)` / `spy(target)` target and redirects direct
 // calls to it at link time. This v1 facade intentionally accepts word-sized
-// scalar or pointer arguments and returns a word.  The generated entry carries
-// up to six ABI words (three registers and three stack arguments).
+// scalar or pointer arguments and stores a word for `.ret(...)`.  Fake
+// callbacks use the target's full ABI, including the compiler's hidden r4
+// result-buffer pointer for struct/array returns. The generated entry carries
+// up to six ordinary ABI words (three registers and three stack arguments).
 export struct TargetMock {
     i32 slot;
 };
@@ -20,8 +22,9 @@ export struct TargetRule {
 export i32 mock_active_target = 0;
 export i32 mock_result = 0;
 // A configured fake is invoked by the generated target entry.  The callback
-// uses the target's ordinary ABI (up to six word-sized arguments) and returns
-// its result in r1 when the target has a value return.
+// uses the target's ordinary ABI (up to six word-sized arguments). For a
+// scalar return it places the result in r1; for a struct/array return the
+// callback writes through the hidden result buffer supplied in r4.
 export i32 mock_callback = 0;
 
 i32 mock_targets[8];
@@ -188,7 +191,9 @@ TargetRule* (TargetRule* self) then_ret(i32 value) {
 
 // Invoke `fn` for a matching call instead of returning a stored word.  This
 // makes pointer/out-parameter effects testable without making production code
-// depend on DI.  `fn` must have the same word-sized ABI as the target.
+// depend on DI. `fn` must have the same signature as the target. This includes
+// struct/array returns: the generated entry preserves their hidden r4 result
+// buffer. Use `.call(fake)` for those returns; `.ret(...)` stores one word.
 TargetRule* (TargetRule* self) call(i32 fn) {
     i32 key = rule_index(self->slot, self->rule);
     mock_rule_return_counts[key] = 0;

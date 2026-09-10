@@ -49,6 +49,32 @@ void spy_notify_four(i32 a, i32 b, i32 c, i32 d) {
     mock.call_original(a, b, c, d);
 }
 
+struct Pair {
+    i32 left;
+    i32 right;
+};
+
+Pair make_pair(i32 left, i32 right) {
+    Pair result;
+    result.left = left;
+    result.right = right;
+    return result;
+}
+
+Pair pair_via_service(i32 left, i32 right) {
+    return make_pair(left, right);
+}
+
+i32 g_fake_pair_calls = 0;
+
+Pair fake_pair(i32 left, i32 right) {
+    Pair result;
+    g_fake_pair_calls = g_fake_pair_calls + 1;
+    result.left = left + 10;
+    result.right = right + 20;
+    return result;
+}
+
 /*@Test "spy_redirect" { step: 100000; }*/
 void spy_redirect() {
     mock.spy(read_word)
@@ -109,4 +135,31 @@ void void_spy_callback_delegates_to_original() {
     notify_four(4, 3, 2, 1);
     assert.assert_true(g_notifications == 10, "void target reaches original implementation");
     assert.assert_true(mock.called_with(notify_four, 4, 3, 2, 1), "void call records four words");
+}
+
+/*@Test "aggregate mock callback forwards hidden result buffer"*/
+void aggregate_mock_callback_forwards_hidden_result_buffer() {
+    mock.of(make_pair)
+        .when(2, 3)
+        .call(fake_pair);
+
+    Pair result = pair_via_service(2, 3);
+    assert.assert_true(result.left == 12, "aggregate fake writes left field through hidden buffer");
+    assert.assert_true(result.right == 23, "aggregate fake writes right field through hidden buffer");
+    assert.assert_true(g_fake_pair_calls == 1, "aggregate fake runs once");
+    assert.assert_true(mock.calls(make_pair) == 1, "aggregate mock records the call");
+    assert.assert_true(mock.called_with(make_pair, 2, 3), "aggregate mock records arguments");
+}
+
+/*@Test "aggregate spy falls back to original"*/
+void aggregate_spy_falls_back_to_original() {
+    mock.spy(make_pair)
+        .when(9, 9)
+        .call(fake_pair);
+
+    Pair original = pair_via_service(4, 5);
+    Pair fake = pair_via_service(9, 9);
+    assert.assert_true(original.left == 4 && original.right == 5, "aggregate spy forwards unmatched call");
+    assert.assert_true(fake.left == 19 && fake.right == 29, "aggregate spy forwards matched call to fake");
+    assert.assert_true(mock.calls(make_pair) == 2, "aggregate spy records both calls");
 }

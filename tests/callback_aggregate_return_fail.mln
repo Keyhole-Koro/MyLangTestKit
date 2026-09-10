@@ -1,0 +1,17 @@
+import mock from "../runtime/facade.mln";
+
+struct Pair {
+    i32 left;
+    i32 right;
+};
+
+Pair make_pair(i32 left, i32 right) {
+    Pair result;
+    result.left = left;
+    result.right = right;
+    return result;
+}
+
+void configure_invalid_aggregate_return() {
+    mock.of(make_pair).when(1, 2).ret(3);
+}

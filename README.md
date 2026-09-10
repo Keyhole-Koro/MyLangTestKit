@@ -47,10 +47,14 @@ identity in that entry means test authors do not define an `Args` struct or a
 target-specific `Mock` struct.
 
 The current facade supports word-sized scalar/pointer arguments and `void`
-targets, with up to six matched arguments. `mock.any()` is
-available alongside exact-value matches. An unmatched `mock.of` call fails the
-test; an unmatched `mock.spy` call reaches the original function. `ret(value)`
-starts a configured return sequence and `then_ret(value)` appends to it.
+targets, with up to six matched arguments. It also supports struct/array
+returns through a fake callback: MyLangCompiler supplies the normal hidden
+result-buffer pointer and the generated entry forwards it unchanged. An
+aggregate target must use `call(fake)` rather than `ret(value)`, because a
+stored return sequence holds one machine word. `mock.any()` is available
+alongside exact-value matches. An unmatched `mock.of` call fails the test; an
+unmatched `mock.spy` call reaches the original function. `ret(value)` starts a
+configured return sequence and `then_ret(value)` appends to it.
 
 For a fake that needs side effects, use `call(fake)`. The fake receives the
 target's original arguments and supplies its return value, so it can fill an
@@ -68,9 +72,10 @@ mock.of(ssd.read_block)
 ```
 
 Each rule has one action: a later `ret(...)` replaces a fake, and `call(...)`
-replaces a configured return sequence. The fake must use the same word-sized
-ABI as its target. The compiler checks that parameter count, parameter types,
-and return type match before building the test.
+replaces a configured return sequence. The fake must use the same signature
+as its target, including aggregate return type. The compiler checks that
+parameter count, parameter types, and return type match before building the
+test.
 
 A Spy fake can inspect or alter a call and still invoke production code with
 `mock.call_original(...)`. Supply the intercepted function's original

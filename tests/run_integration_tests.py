@@ -89,7 +89,9 @@ def run_redirect_fixture() -> None:
         stderr=subprocess.STDOUT,
     )
     required = ("[PASS] spy_redirect", "[PASS] mock_sequences", "[PASS] callback_redirect",
-                "[PASS] spy callback delegates to original", "[PASS] void spy callback delegates to original")
+                "[PASS] spy callback delegates to original", "[PASS] void spy callback delegates to original",
+                "[PASS] aggregate mock callback forwards hidden result buffer",
+                "[PASS] aggregate spy falls back to original")
     if result.returncode != 0 or not all(marker in result.stdout for marker in required):
         raise RuntimeError(f"facade_redirect: expected annotated tests to pass\n{result.stdout}")
 
@@ -100,6 +102,7 @@ def run_callback_signature_failures() -> None:
         ("callback_signature_arity_fail", "has 1 parameters but target 'device_read' has 2"),
         ("callback_signature_type_fail", "parameter 2 does not match target 'device_read'"),
         ("callback_signature_return_fail", "return type does not match target 'device_read'"),
+        ("callback_aggregate_return_fail", "cannot return aggregate target 'make_pair'; use .call(fake)"),
     )
     with tempfile.TemporaryDirectory(prefix="mylang-testkit-callback-signature-") as temp:
         temp_dir = Path(temp)
@@ -111,7 +114,8 @@ def run_callback_signature_failures() -> None:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
             )
-            if result.returncode == 0 or "error[E0103]" not in result.stdout or message not in result.stdout:
+            expected_code = "E0104" if name == "callback_aggregate_return_fail" else "E0103"
+            if result.returncode == 0 or f"error[{expected_code}]" not in result.stdout or message not in result.stdout:
                 raise RuntimeError(f"{name}: expected signature error\n{result.stdout}")
 
 
