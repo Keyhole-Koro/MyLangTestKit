@@ -18,6 +18,10 @@ export struct TargetRule {
 // order never changes dispatch behaviour.
 export i32 mock_active_target = 0;
 export i32 mock_result = 0;
+// A configured fake is invoked by the generated target entry.  The callback
+// uses the target's ordinary ABI (up to three word-sized arguments in r5-r7)
+// and returns its result in r1.
+export i32 mock_callback = 0;
 
 i32 mock_targets[8];
 i32 mock_modes[8];
@@ -27,6 +31,7 @@ i32 mock_rule_args[192];
 i32 mock_rule_return_counts[64];
 i32 mock_rule_returns[512];
 i32 mock_rule_cursors[64];
+i32 mock_rule_callbacks[64];
 // Calls are recorded by the generated target entries. Keep the most recent
 // sixteen argument triples per target, while preserving the full call count.
 i32 mock_call_counts[8];
@@ -139,6 +144,7 @@ TargetRule* (TargetMock* self) when(rest args) {
     }
     mock_rule_return_counts[key] = 0;
     mock_rule_cursors[key] = 0;
+    mock_rule_callbacks[key] = 0;
     mock_rule_counts[slot] = rule + 1;
     mock_rule_handles[key].slot = slot;
     mock_rule_handles[key].rule = rule;
@@ -147,6 +153,9 @@ TargetRule* (TargetMock* self) when(rest args) {
 
 TargetRule* (TargetRule* self) ret(i32 value) {
     i32 key = rule_index(self->slot, self->rule);
+    // A rule has one action.  A later `.ret(...)` deliberately replaces a
+    // previously configured fake while still allowing chained return values.
+    mock_rule_callbacks[key] = 0;
     i32 count = mock_rule_return_counts[key];
     if (count >= 8) return (TargetRule*)0;
     mock_rule_returns[rule_return_index(self->slot, self->rule, count)] = value;
@@ -158,10 +167,23 @@ TargetRule* (TargetRule* self) then_ret(i32 value) {
     return self.ret(value);
 }
 
+// Invoke `fn` for a matching call instead of returning a stored word.  This
+// makes pointer/out-parameter effects testable without making production code
+// depend on DI.  `fn` must have the same word-sized ABI as the target.
+TargetRule* (TargetRule* self) call(i32 fn) {
+    i32 key = rule_index(self->slot, self->rule);
+    mock_rule_return_counts[key] = 0;
+    mock_rule_cursors[key] = 0;
+    mock_rule_callbacks[key] = fn;
+    return self;
+}
+
 // Called by an entry after it stores its target address in
 // `mock_active_target`. The first three machine ABI arguments are already in
-// r5-r7 and become a/b/c here. A return of 1 means `mock_result` is valid.
+// r5-r7 and become a/b/c here. A nonzero return means either
+// `mock_result` or `mock_callback` is valid; the latter takes precedence.
 export i32 dispatch(i32 a, i32 b, i32 c) {
+    mock_callback = 0;
     i32 slot = find_slot(mock_active_target);
     if (slot < 0 || mock_modes[slot] == 0) return 0;
     i32 rule = mock_rule_counts[slot];
@@ -181,6 +203,10 @@ export i32 dispatch(i32 a, i32 b, i32 c) {
         if (count > 2) {
             i32 expected = mock_rule_args[rule_arg_index(slot, rule, 2)];
             if (expected != any() && expected != c) matched = 0;
+        }
+        if (matched != 0 && mock_rule_callbacks[key] != 0) {
+            mock_callback = mock_rule_callbacks[key];
+            return 1;
         }
         if (matched != 0 && mock_rule_return_counts[key] != 0) {
             i32 cursor = mock_rule_cursors[key];

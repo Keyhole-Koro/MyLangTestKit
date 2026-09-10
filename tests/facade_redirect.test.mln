@@ -13,6 +13,21 @@ i32 static_word(i32 value) {
     return value + 1;
 }
 
+i32 copy_word(i32 value, i32 out) {
+    i32* destination = (i32*)out;
+    *destination = value;
+    return value;
+}
+
+i32 g_fake_calls = 0;
+
+i32 fake_copy_word(i32 value, i32 out) {
+    i32* destination = (i32*)out;
+    g_fake_calls = g_fake_calls + 1;
+    *destination = value + 7;
+    return 55;
+}
+
 /*@Test "spy_redirect" { step: 100000; }*/
 void spy_redirect() {
     mock.spy(read_word)
@@ -36,4 +51,18 @@ void mock_sequences() {
     assert.assert_true(static_word(5) == 88, "mock returns chained value");
     assert.assert_true(mock.calls(static_word) == 2, "mock records every call");
     assert.assert_true(mock.called_with(static_word, 5), "mock records configured argument");
+}
+
+/*@Test "callback_redirect"*/
+void callback_redirect() {
+    mock.of(copy_word)
+        .when(3, mock.any())
+        .call(fake_copy_word);
+
+    i32 output = 0;
+    assert.assert_true(copy_word(3, (i32)&output) == 55, "fake return is forwarded");
+    assert.assert_true(output == 10, "fake writes through the output pointer");
+    assert.assert_true(g_fake_calls == 1, "fake is called once");
+    assert.assert_true(mock.calls(copy_word) == 1, "callback call is recorded");
+    assert.assert_true(mock.called_with(copy_word, 3, mock.any()), "callback arguments are recorded");
 }

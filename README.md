@@ -52,6 +52,25 @@ available alongside exact-value matches. An unmatched `mock.of` call fails the
 test; an unmatched `mock.spy` call reaches the original function. `ret(value)`
 starts a configured return sequence and `then_ret(value)` appends to it.
 
+For a fake that needs side effects, use `call(fake)`. The fake receives the
+target's original arguments and supplies its return value, so it can fill an
+out-buffer or update test-local counters:
+
+```mylang
+i32 fake_read(i32 block, i32 buffer) {
+    *(i32*)buffer = block + 7;
+    return 0;
+}
+
+mock.of(ssd.read_block)
+    .when(3, mock.any())
+    .call(fake_read);
+```
+
+Each rule has one action: a later `ret(...)` replaces a fake, and `call(...)`
+replaces a configured return sequence. The fake must use the same word-sized
+ABI as its target; signature checking is not yet available.
+
 Every intercepted call is observable without an `Args` declaration:
 
 ```mylang
