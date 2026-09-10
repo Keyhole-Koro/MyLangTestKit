@@ -75,6 +75,37 @@ Pair fake_pair(i32 left, i32 right) {
     return result;
 }
 
+i32 g_aggregate_original_delegations = 0;
+
+Pair spy_pair(i32 left, i32 right) {
+    g_aggregate_original_delegations = g_aggregate_original_delegations + 1;
+    return mock.call_original(left, right);
+}
+
+i32 nested_inner(i32 value) {
+    return value + 1;
+}
+
+i32 nested_outer(i32 value) {
+    return nested_inner(value) + 10;
+}
+
+i32 fake_nested_outer(i32 value) {
+    i32 nested = nested_inner(value);
+    return mock.call_original(value) + nested;
+}
+
+i32 is_even(i32 value) { return value % 2 == 0; }
+
+i32 inspect_pair(Pair value) {
+    return value.left + value.right;
+}
+
+i32 pair_is_two_three(i32 value_addr) {
+    Pair* value = (Pair*)value_addr;
+    return value->left == 2 && value->right == 3;
+}
+
 /*@Test "spy_redirect" { step: 100000; }*/
 void spy_redirect() {
     mock.spy(read_word)
@@ -162,4 +193,51 @@ void aggregate_spy_falls_back_to_original() {
     assert.assert_true(original.left == 4 && original.right == 5, "aggregate spy forwards unmatched call");
     assert.assert_true(fake.left == 19 && fake.right == 29, "aggregate spy forwards matched call to fake");
     assert.assert_true(mock.calls(make_pair) == 2, "aggregate spy records both calls");
+}
+
+/*@Test "aggregate spy fake delegates to original"*/
+void aggregate_spy_fake_delegates_to_original() {
+    mock.spy(make_pair)
+        .when(6, 7)
+        .call(spy_pair);
+
+    Pair result = pair_via_service(6, 7);
+    assert.assert_true(result.left == 6 && result.right == 7,
+                       "aggregate Spy fake forwards its result buffer to original");
+    assert.assert_true(g_aggregate_original_delegations == 1,
+                       "aggregate Spy fake delegates exactly once");
+}
+
+/*@Test "nested mock restores outer call original target"*/
+void nested_mock_restores_outer_call_original_target() {
+    mock.of(nested_inner).when(3).ret(50);
+    mock.spy(nested_outer).when(3).call(fake_nested_outer);
+
+    assert.assert_true(nested_outer(3) == 110,
+                       "nested entry restores outer target before call_original");
+    assert.assert_true(mock.calls(nested_inner) == 2,
+                       "fake and original each enter the nested mock");
+    assert.assert_true(mock.calls(nested_outer) == 1,
+                       "outer Spy is recorded once");
+}
+
+/*@Test "predicate matchers and verify helpers"*/
+void predicate_matchers_and_verify_helpers() {
+    // mock.of(not_a_real_target).when(0).ret(0); must not affect discovery.
+    char* prose = "mock.spy(not_a_real_target)";
+    assert.assert_true(prose != (char*)0, "mock-looking string is ordinary data");
+    mock.of(static_word).when(mock.match(is_even)).ret(91);
+    assert.assert_true(static_word(4) == 91, "predicate matcher configures scalar calls");
+    assert.assert_true(mock.once(static_word), "once helper checks exact count");
+    assert.assert_true(mock.times(static_word, 1), "times helper checks exact count");
+    assert.assert_true(mock.never(read_word), "never helper checks untouched target");
+
+    Pair input;
+    input.left = 2;
+    input.right = 3;
+    mock.of(inspect_pair).when(mock.match(pair_is_two_three)).ret(77);
+    assert.assert_true(inspect_pair(input) == 77,
+                       "predicate matcher can inspect aggregate argument fields");
+    assert.assert_true(mock.called_with(inspect_pair, mock.match(pair_is_two_three)),
+                       "history accepts the same aggregate predicate matcher");
 }

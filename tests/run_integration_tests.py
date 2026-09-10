@@ -91,7 +91,10 @@ def run_redirect_fixture() -> None:
     required = ("[PASS] spy_redirect", "[PASS] mock_sequences", "[PASS] callback_redirect",
                 "[PASS] spy callback delegates to original", "[PASS] void spy callback delegates to original",
                 "[PASS] aggregate mock callback forwards hidden result buffer",
-                "[PASS] aggregate spy falls back to original")
+                "[PASS] aggregate spy falls back to original",
+                "[PASS] aggregate spy fake delegates to original",
+                "[PASS] nested mock restores outer call original target",
+                "[PASS] predicate matchers and verify helpers")
     if result.returncode != 0 or not all(marker in result.stdout for marker in required):
         raise RuntimeError(f"facade_redirect: expected annotated tests to pass\n{result.stdout}")
 
@@ -102,11 +105,19 @@ def run_callback_signature_failures() -> None:
         ("callback_signature_arity_fail", "has 1 parameters but target 'device_read' has 2"),
         ("callback_signature_type_fail", "parameter 2 does not match target 'device_read'"),
         ("callback_signature_return_fail", "return type does not match target 'device_read'"),
-        ("callback_aggregate_return_fail", "cannot return aggregate target 'make_pair'; use .call(fake)"),
+        ("callback_aggregate_return_fail", "E0104", "cannot return aggregate target 'make_pair'; use .call(fake)"),
+        ("callback_void_return_fail", "E0105", "cannot configure void target 'notify'; use .call(fake)"),
+        ("callback_argument_limit_fail", "E0105", "mock .when(...) supports at most six arguments"),
+        ("callback_imported_result_return_fail", "E0104", "cannot return aggregate target 'fs_create'; use .call(fake)"),
     )
     with tempfile.TemporaryDirectory(prefix="mylang-testkit-callback-signature-") as temp:
         temp_dir = Path(temp)
-        for name, message in cases:
+        for case in cases:
+            if len(case) == 2:
+                name, message = case
+                expected_code = "E0103"
+            else:
+                name, expected_code, message = case
             result = subprocess.run(
                 [str(COMPILER), str(KIT_ROOT / f"tests/{name}.mln"), str(temp_dir / f"{name}.masm")],
                 cwd=REPO_ROOT,
@@ -114,9 +125,19 @@ def run_callback_signature_failures() -> None:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
             )
-            expected_code = "E0104" if name == "callback_aggregate_return_fail" else "E0103"
             if result.returncode == 0 or f"error[{expected_code}]" not in result.stdout or message not in result.stdout:
                 raise RuntimeError(f"{name}: expected signature error\n{result.stdout}")
+
+
+def run_unexpected_mock_diagnostic() -> None:
+    """An unmatched Mock reports its target instead of a generic no-verdict."""
+    test = KIT_ROOT / "tests/unexpected_mock.test.mln"
+    result = subprocess.run(
+        [str(TESTER), str(test)], cwd=REPO_ROOT, text=True,
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+    )
+    if result.returncode == 0 or "TEST_FAIL:mock.unexpected:unconfigured_target" not in result.stdout:
+        raise RuntimeError(f"unexpected_mock: expected target diagnostic\n{result.stdout}")
 
 
 def main() -> int:
@@ -127,6 +148,7 @@ def main() -> int:
     run_fixture("mock_engine_test", "TEST_PASS:mock_engine_test")
     run_redirect_fixture()
     run_callback_signature_failures()
+    run_unexpected_mock_diagnostic()
     print("[PASS] MyLangTestKit ABI v1")
     return 0
 

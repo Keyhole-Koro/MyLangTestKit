@@ -1,0 +1,7 @@
+import mock from "../runtime/facade.mln";
+
+void notify(i32 value) {}
+
+void configure_invalid_void_return() {
+    mock.of(notify).when(1).ret(2);
+}

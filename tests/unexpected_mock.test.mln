@@ -1,0 +1,9 @@
+import mock from "../runtime/facade.mln";
+
+i32 unconfigured_target(i32 value) { return value + 1; }
+
+/*@Test "unexpected mock diagnostic"*/
+void unexpected_mock_diagnostic() {
+    mock.of(unconfigured_target);
+    unconfigured_target(7);
+}

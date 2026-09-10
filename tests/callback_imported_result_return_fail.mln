@@ -1,0 +1,6 @@
+import mock from "../runtime/facade.mln";
+import fs from "../../../system/MyOS/src/fs/fs.mln";
+
+void configure_invalid_imported_result_return() {
+    mock.of(fs.create).when(mock.any()).ret(1);
+}

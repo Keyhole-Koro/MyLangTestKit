@@ -51,8 +51,21 @@ targets, with up to six matched arguments. It also supports struct/array
 returns through a fake callback: MyLangCompiler supplies the normal hidden
 result-buffer pointer and the generated entry forwards it unchanged. An
 aggregate target must use `call(fake)` rather than `ret(value)`, because a
-stored return sequence holds one machine word. `mock.any()` is available
-alongside exact-value matches. An unmatched `mock.of` call fails the test; an
+stored return sequence holds one machine word. The compiler rejects aggregate
+or `void` `.ret(...)` calls with `E0104`/`E0105`, including imported
+`Result<T, E>` targets.
+
+`mock.any()` is available alongside exact-value matches. `mock.match(fn)`
+registers an allocation-free predicate receiving the intercepted ABI word.
+For a by-value struct argument this word is the struct buffer address, so the
+predicate can inspect fields without an `Args` type:
+
+```mylang
+i32 has_id_7(i32 address) { return ((Request*)address)->id == 7; }
+mock.of(service.handle).when(mock.match(has_id_7)).ret(0);
+```
+
+An unmatched `mock.of` call fails as `TEST_FAIL:mock.unexpected:<target>`; an
 unmatched `mock.spy` call reaches the original function. `ret(value)` starts a
 configured return sequence and `then_ret(value)` appends to it.
 
@@ -90,16 +103,46 @@ i32 trace_read(i32 block, i32 buffer) {
 mock.spy(ssd.read_block).when(mock.any(), mock.any()).call(trace_read);
 ```
 
+For an aggregate-returning fake, write the delegation as the direct return
+expression. The compiler forwards the fake's hidden result buffer to the
+original target:
+
+```mylang
+Result<i32, FsError> trace_create(char* path) {
+    create_calls = create_calls + 1;
+    return mock.call_original(path);
+}
+```
+
+Nested mocked calls are supported: TestKit keeps active target identity as a
+bounded stack, so an outer fake can call another mock and still delegate to its
+own original target afterwards.
+
 Every intercepted call is observable without an `Args` declaration:
 
 ```mylang
 assert.assert_true(mock.calls(ssd.read_block) == 2, "two reads");
 assert.assert_true(mock.called_with(ssd.read_block, 7, mock.any()), "read block 7");
+assert.assert_true(mock.times(ssd.read_block, 2), "two reads");
+assert.assert_true(mock.once(ssd.read_block), "one read");
+assert.assert_true(mock.never(ssd.write_block), "no writes");
 ```
 
 `calls(target)` returns the exact total. `called_with(target, ...)` searches
 the latest sixteen calls and matches the supplied argument prefix (up to six
-arguments); `mock.any()` can be used in any supplied position.
+arguments); `mock.any()` and `mock.match(fn)` can be used in any supplied
+position. Call history stores ABI words, not deep copies: for a struct
+argument, `called_with` evaluates its predicate against the original buffer.
+Use a predicate during interception if the buffer may later be mutated.
+
+The intentionally bounded v1 runtime supports eight targets, eight rules per
+target, eight stored returns per rule, eight predicate matchers, sixteen
+history entries per target, and six ABI-word arguments. Exceeding a runtime
+capacity fails with a `TEST_FAIL:mock.*_capacity` verdict; source-visible
+argument limits are rejected by `E0105`. The active-target stack is likewise
+eight deep. Mock configuration and dispatch are test-global; concurrent tasks
+must not enter the same mocked target simultaneously until TestKit gains a
+platform-provided task-local context hook.
 
 The compiler and linker provide complementary test-build primitives:
 `--redirect-call <original>=<entry>` makes even same-module direct calls

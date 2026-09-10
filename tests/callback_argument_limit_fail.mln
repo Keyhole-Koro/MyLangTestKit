@@ -1,0 +1,7 @@
+import mock from "../runtime/facade.mln";
+
+i32 seven(i32 a, i32 b, i32 c, i32 d, i32 e, i32 f, i32 g) { return a; }
+
+void configure_too_many_matchers() {
+    mock.of(seven).when(1, 2, 3, 4, 5, 6, 7).ret(1);
+}
