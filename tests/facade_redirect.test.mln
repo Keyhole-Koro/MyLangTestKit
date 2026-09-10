@@ -28,6 +28,27 @@ i32 fake_copy_word(i32 value, i32 out) {
     return 55;
 }
 
+i32 sum_four(i32 a, i32 b, i32 c, i32 d) {
+    return a + b + c + d;
+}
+
+i32 g_original_delegations = 0;
+
+i32 spy_sum_four(i32 a, i32 b, i32 c, i32 d) {
+    g_original_delegations = g_original_delegations + 1;
+    return mock.call_original(a, b, c, d) + 100;
+}
+
+i32 g_notifications = 0;
+
+void notify_four(i32 a, i32 b, i32 c, i32 d) {
+    g_notifications = g_notifications + a + b + c + d;
+}
+
+void spy_notify_four(i32 a, i32 b, i32 c, i32 d) {
+    mock.call_original(a, b, c, d);
+}
+
 /*@Test "spy_redirect" { step: 100000; }*/
 void spy_redirect() {
     mock.spy(read_word)
@@ -65,4 +86,27 @@ void callback_redirect() {
     assert.assert_true(g_fake_calls == 1, "fake is called once");
     assert.assert_true(mock.calls(copy_word) == 1, "callback call is recorded");
     assert.assert_true(mock.called_with(copy_word, 3, mock.any()), "callback arguments are recorded");
+}
+
+/*@Test "spy callback delegates to original"*/
+void spy_callback_delegates_to_original() {
+    mock.spy(sum_four)
+        .when(1, 2, 3, 4)
+        .call(spy_sum_four);
+
+    assert.assert_true(sum_four(1, 2, 3, 4) == 110, "fake delegates then adjusts result");
+    assert.assert_true(g_original_delegations == 1, "fake delegates exactly once");
+    assert.assert_true(mock.calls(sum_four) == 1, "four-word call is recorded");
+    assert.assert_true(mock.called_with(sum_four, 1, 2, 3, 4), "four-word match succeeds");
+}
+
+/*@Test "void spy callback delegates to original"*/
+void void_spy_callback_delegates_to_original() {
+    mock.spy(notify_four)
+        .when(4, 3, 2, 1)
+        .call(spy_notify_four);
+
+    notify_four(4, 3, 2, 1);
+    assert.assert_true(g_notifications == 10, "void target reaches original implementation");
+    assert.assert_true(mock.called_with(notify_four, 4, 3, 2, 1), "void call records four words");
 }
