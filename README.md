@@ -69,7 +69,8 @@ mock.of(ssd.read_block)
 
 Each rule has one action: a later `ret(...)` replaces a fake, and `call(...)`
 replaces a configured return sequence. The fake must use the same word-sized
-ABI as its target; signature checking is not yet available.
+ABI as its target. The compiler checks that parameter count, parameter types,
+and return type match before building the test.
 
 Every intercepted call is observable without an `Args` declaration:
 

@@ -1,0 +1,5 @@
+package device;
+
+export i32 read(i32 block, char* buffer) {
+    return block + (i32)buffer;
+}

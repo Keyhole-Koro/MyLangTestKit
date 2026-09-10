@@ -15,6 +15,7 @@ BUILD = REPO_ROOT / "qa/runners/build_toolchain.py"
 EMU = REPO_ROOT / "runtime/MyEmulator/target/release/myemu"
 TESTER_ROOT = REPO_ROOT / "toolchain/MyLangTester"
 TESTER = TESTER_ROOT / "build/mytest"
+COMPILER = REPO_ROOT / "toolchain/MyLangCompiler/mlc"
 RUNTIME = [
     KIT_ROOT / "runtime/abi.mln",
     KIT_ROOT / "runtime/testkit.mln",
@@ -92,6 +93,27 @@ def run_redirect_fixture() -> None:
         raise RuntimeError(f"facade_redirect: expected annotated tests to pass\n{result.stdout}")
 
 
+def run_callback_signature_failures() -> None:
+    """Reject incompatible fakes, including a target from a package import."""
+    cases = (
+        ("callback_signature_arity_fail", "has 1 parameters but target 'device_read' has 2"),
+        ("callback_signature_type_fail", "parameter 2 does not match target 'device_read'"),
+        ("callback_signature_return_fail", "return type does not match target 'device_read'"),
+    )
+    with tempfile.TemporaryDirectory(prefix="mylang-testkit-callback-signature-") as temp:
+        temp_dir = Path(temp)
+        for name, message in cases:
+            result = subprocess.run(
+                [str(COMPILER), str(KIT_ROOT / f"tests/{name}.mln"), str(temp_dir / f"{name}.masm")],
+                cwd=REPO_ROOT,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+            )
+            if result.returncode == 0 or "error[E0103]" not in result.stdout or message not in result.stdout:
+                raise RuntimeError(f"{name}: expected signature error\n{result.stdout}")
+
+
 def main() -> int:
     run_fixture("verdict_test", "TEST_PASS:verdict_test")
     run_fixture("assert_fail_test", "TEST_FAIL:expected assertion failure")
@@ -99,6 +121,7 @@ def main() -> int:
     run_fixture("pointer_method_chain_test", "TEST_PASS:pointer_method_chain_test")
     run_fixture("mock_engine_test", "TEST_PASS:mock_engine_test")
     run_redirect_fixture()
+    run_callback_signature_failures()
     print("[PASS] MyLangTestKit ABI v1")
     return 0
 

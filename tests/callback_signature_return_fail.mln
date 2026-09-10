@@ -1,0 +1,11 @@
+import mock from "../runtime/facade.mln";
+import device from "callback_signature_device.mln";
+
+u32 fake_read(i32 block, char* buffer) {
+    return (u32)(block + (i32)buffer);
+}
+
+i32 main() {
+    mock.of(device.read).when(3, mock.any()).call(fake_read);
+    return 0;
+}
