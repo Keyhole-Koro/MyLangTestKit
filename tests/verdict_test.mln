@@ -1,11 +1,11 @@
 import assert from "../../MyStdLib/assert.mln";
+import testkit from "../runtime/testkit.mln";
 
 extern void __mlt_require_abi_v1();
-extern void testkit_pass(char* name);
 
 i32 kernel_main() {
     __mlt_require_abi_v1();
     assert.assert_true(1, "TestKit assertion bridge should not fail");
-    testkit_pass("verdict_test");
+    testkit.pass("verdict_test");
     return 0;
 }

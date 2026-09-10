@@ -17,6 +17,7 @@ TESTER_ROOT = REPO_ROOT / "toolchain/MyLangTester"
 TESTER = TESTER_ROOT / "build/mytest"
 RUNTIME = [
     KIT_ROOT / "runtime/abi.mln",
+    KIT_ROOT / "runtime/testkit.mln",
     KIT_ROOT / "runtime/verdict.mln",
     KIT_ROOT / "runtime/matcher.mln",
     KIT_ROOT / "runtime/return_sequence.mln",

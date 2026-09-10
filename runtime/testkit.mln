@@ -1,0 +1,16 @@
+package testkit;
+
+// Platform hooks supplied by exactly one TestKit platform adapter. Both
+// operations publish a structured verdict and stop execution on MyComputer,
+// so they are safe to call from an asynchronous task as well as from a normal
+// returning test function.
+extern void __mlt_platform_pass(char* name);
+extern void __mlt_platform_fail(char* reason);
+
+export void pass(char* name) {
+    __mlt_platform_pass(name);
+}
+
+export void fail(char* reason) {
+    __mlt_platform_fail(reason);
+}

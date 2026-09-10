@@ -1,14 +1,7 @@
-// Platform hooks supplied by exactly one TestKit platform adapter.
-extern void __mlt_platform_pass(char* name);
-extern void __mlt_platform_fail(char* reason);
-
-// Test-runner generated kernel_main calls this after the test body returns.
-void testkit_pass(char* name) {
-    __mlt_platform_pass(name);
-}
+import testkit from "testkit.mln";
 
 // Runtime hook required by MyStdLib/assert.mln.  This remains intentionally
 // non-exported so its link name is the bare assert_fail expected by MyStdLib.
 void assert_fail(char* reason) {
-    __mlt_platform_fail(reason);
+    testkit.fail(reason);
 }
