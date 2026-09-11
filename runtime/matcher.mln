@@ -3,40 +3,28 @@ package mock;
 // The compiler-generated mock dispatcher stores one of these for each
 // scalar/pointer argument.  The public mock.any()/mock.eq() DSL lowers to the
 // typed constructors below; handwritten tests may use them directly.
-export struct Matcher<T> {
-    i32 kind;
-    T expected;
-};
+export enum Matcher<T> {
+    Any,
+    Eq(T),
+    Ne(T),
+}
 
 export Matcher<T> any<T>() {
-    Matcher<T> matcher;
-    matcher.kind = 1;
-    return matcher;
+    return Matcher::Any;
 }
 
 export Matcher<T> eq<T>(T expected) {
-    Matcher<T> matcher;
-    matcher.kind = 2;
-    matcher.expected = expected;
-    return matcher;
+    return Matcher::Eq(expected);
 }
 
 export Matcher<T> ne<T>(T expected) {
-    Matcher<T> matcher;
-    matcher.kind = 3;
-    matcher.expected = expected;
-    return matcher;
+    return Matcher::Ne(expected);
 }
 
 export i32 matches<T>(Matcher<T>* matcher, T actual) {
-    if (matcher->kind == 1) {
-        return 1;
-    }
-    if (matcher->kind == 2) {
-        return actual == matcher->expected;
-    }
-    if (matcher->kind == 3) {
-        return actual != matcher->expected;
-    }
-    return 0;
+    return case *matcher of {
+        Any -> 1;
+        Eq(expected) -> actual == expected;
+        Ne(expected) -> actual != expected;
+    };
 }
