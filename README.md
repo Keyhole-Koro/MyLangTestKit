@@ -135,14 +135,30 @@ position. Call history stores ABI words, not deep copies: for a struct
 argument, `called_with` evaluates its predicate against the original buffer.
 Use a predicate during interception if the buffer may later be mutated.
 
-The intentionally bounded v1 runtime supports eight targets, eight rules per
+The intentionally bounded runtime supports eight targets, eight rules per
 target, eight stored returns per rule, eight predicate matchers, sixteen
-history entries per target, and six ABI-word arguments. Exceeding a runtime
-capacity fails with a `TEST_FAIL:mock.*_capacity` verdict; source-visible
-argument limits are rejected by `E0105`. The active-target stack is likewise
-eight deep. Mock configuration and dispatch are test-global; concurrent tasks
-must not enter the same mocked target simultaneously until TestKit gains a
-platform-provided task-local context hook.
+history entries per target **per context**, and six ABI-word arguments.
+Exceeding a runtime capacity fails with a `TEST_FAIL:mock.*_capacity` verdict;
+source-visible argument limits are rejected by `E0105`. The active-target
+stack is likewise eight deep, and up to eight task contexts can be live in one
+test.
+
+Configuration is test-global and must finish before tasks start. Activation,
+fake callbacks, stored-return cursors, and history are context-local. A normal
+test needs no setup; it uses context zero. A scheduler test opts in before
+spawning tasks by supplying a stable task identity function:
+
+```mylang
+scheduler.init();
+mock.set_context_provider(scheduler.current_context);
+// configure mock/spy rules, then spawn tasks
+```
+
+`calls(target)` aggregates every active context, while `called_with` searches
+them all. This makes a fake that is preempted between entry and
+`mock.call_original(...)` resume with its own original target. IRQ handlers
+currently share the interrupted task's context; a distinct IRQ history scope
+can be added later if a test needs to mock work performed by the handler.
 
 The compiler and linker provide complementary test-build primitives:
 `--redirect-call <original>=<entry>` makes even same-module direct calls
