@@ -92,7 +92,7 @@ i32 (ref Mock<Args, Ret> self) dispatch(Args args, Ret* out) {
     while (remaining != 0) {
         remaining = remaining - 1;
         Rule<Args, Ret>* rule = self->rules + remaining;
-        if (rule->enabled != 0) {
+        if (rule->enabled) {
             return self.dispatch_rule(remaining, args, out);
         }
     }
@@ -108,8 +108,10 @@ i32 (ref Mock<Args, Ret> self) dispatch_rule(i32 index, Args args, Ret* out) {
     if (rule->enabled == 0) return 0;
     if (return_sequence_next<Ret>(&rule->returns, out) == 0) return 0;
     rule->hit_count = rule->hit_count + 1;
-    i32 call_index = call_history_begin<Args, Ret>(self->history, args, 2);
-    if (call_index >= 0) call_history_complete<Args, Ret>(self->history, call_index, *out);
+    case call_history_begin<Args, Ret>(self->history, args, 2) of {
+        Some(call_index) -> call_history_complete<Args, Ret>(self->history, call_index, *out);
+        None -> _;
+    };
     return 1;
 }
 

@@ -1,4 +1,5 @@
 import assert from "../../MyStdLib/assert.mln";
+import { Option } from "../../MyStdLib/option.mln";
 import { Matcher, any, eq, matches, ne } from "../runtime/matcher.mln";
 import { ReturnSequence, return_sequence_init, return_sequence_next, return_sequence_push } from "../runtime/return_sequence.mln";
 import { CallHistory, call_history_args_at, call_history_begin, call_history_complete, call_history_count, call_history_init, call_history_path_at, call_history_return_at } from "../runtime/history.mln";
@@ -44,8 +45,9 @@ i32 kernel_main() {
         complete_storage,
         2
     );
-    i32 call_index = call_history_begin<i32, i32>(&history, 7, 2);
-    assert.assert_true(call_index == 0, "first call index");
+    Option<i32> call_index = call_history_begin<i32, i32>(&history, 7, 2);
+    bool first_ok = case call_index of { Some(v) -> v == 0; None -> false; };
+    assert.assert_true(first_ok, "first call index");
     assert.assert_true(call_history_count<i32, i32>(&history) == 1, "call count");
 
     i32* stored_arg = call_history_args_at<i32, i32>(&history, 0);
@@ -56,12 +58,20 @@ i32 kernel_main() {
     i32 path = 0;
     assert.assert_true(call_history_path_at<i32, i32>(&history, 0, &path), "stored path is available");
     assert.assert_true(path == 2, "stored path");
-    assert.assert_true(call_history_complete<i32, i32>(&history, call_index, 11), "complete call");
+    i32 completed = case call_index of {
+        Some(index) -> call_history_complete<i32, i32>(&history, index, 11);
+        None -> 0;
+    };
+    assert.assert_true(completed, "complete call");
     assert.assert_true(call_history_return_at<i32, i32>(&history, 0, &out), "completed call has return");
     assert.assert_true(out == 11, "stored return");
     assert.assert_false(call_history_path_at<i32, i32>(&history, 1, &path), "out of range path fails");
-    assert.assert_true(call_history_begin<i32, i32>(&history, 8, 3) == 1, "second call index");
-    assert.assert_true(call_history_begin<i32, i32>(&history, 9, 3) == -1, "history capacity is enforced");
+    Option<i32> second_index = call_history_begin<i32, i32>(&history, 8, 3);
+    i32 second_ok = case second_index of { Some(v) -> v == 1; None -> false; };
+    assert.assert_true(second_ok, "second call index");
+    Option<i32> full_index = call_history_begin<i32, i32>(&history, 9, 3);
+    bool history_full = case full_index of { Some(_) -> false; None -> true; };
+    assert.assert_true(history_full, "history capacity is enforced");
 
     testkit_pass("mock_core_test");
     return 0;

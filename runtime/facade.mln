@@ -1,5 +1,7 @@
 package mock;
 
+import { Option } from "../../MyStdLib/option.mln";
+
 // Public, target-agnostic facade used by test sources. MyLangTester emits one
 // entry point per `of(target)` / `spy(target)` target and redirects direct
 // calls to it at link time. This v1 facade intentionally accepts word-sized
@@ -90,13 +92,13 @@ i32 context_call_arg_index(i32 context, i32 slot, i32 call, i32 arg) {
 }
 i32 context_active_index(i32 context, i32 depth) { return context * 8 + depth; }
 
-i32 find_slot(i32 target) {
+Option<i32> find_slot(i32 target) {
     i32 index = 0;
     while (index < 8) {
-        if (mock_targets[index] == target) return index;
+        if (mock_targets[index] == target) { return Some(index); }
         index = index + 1;
     }
-    return -1;
+    return None;
 }
 
 extern void assert_fail(char* reason);
@@ -110,49 +112,60 @@ i32 current_context_id() {
     return mock_context_provider();
 }
 
-i32 context_slot(i32 create) {
+Option<i32> context_slot(i32 create) {
     i32 id = current_context_id();
     i32 slot = 0;
     while (slot < 8) {
-        if (mock_context_used[slot] != 0 && mock_context_ids[slot] == id) return slot;
+        if (mock_context_used[slot] && mock_context_ids[slot] == id) { return Some(slot); }
         slot = slot + 1;
     }
-    if (create == 0) return -1;
+    if (create == 0) { return None; }
     slot = 0;
-    while (slot < 8 && mock_context_used[slot] != 0) slot = slot + 1;
+    while (slot < 8 && mock_context_used[slot]) slot = slot + 1;
     if (slot >= 8) {
         assert_fail("mock.context_capacity");
-        return -1;
+        return None;
     }
     mock_context_used[slot] = 1;
     mock_context_ids[slot] = id;
     mock_active_depths[slot] = 0;
     mock_context_results[context_active_index(slot, 0)] = 0;
     mock_context_callbacks[context_active_index(slot, 0)] = 0;
-    return slot;
+    return Some(slot);
 }
 
 export i32 current_target() {
-    i32 context = context_slot(0);
-    if (context < 0 || mock_active_depths[context] <= 0) return 0;
+    i32 context = case context_slot(0) of {
+        Some(v) -> v;
+        None -> ({ return 0; });
+    };
+    if (mock_active_depths[context] <= 0) return 0;
     return mock_active_targets[context_active_index(context, mock_active_depths[context] - 1)];
 }
 
 export i32 current_result() {
-    i32 context = context_slot(0);
-    if (context < 0 || mock_active_depths[context] <= 0) return 0;
+    i32 context = case context_slot(0) of {
+        Some(v) -> v;
+        None -> ({ return 0; });
+    };
+    if (mock_active_depths[context] <= 0) return 0;
     return mock_context_results[context_active_index(context, mock_active_depths[context] - 1)];
 }
 
 export i32 current_callback() {
-    i32 context = context_slot(0);
-    if (context < 0 || mock_active_depths[context] <= 0) return 0;
+    i32 context = case context_slot(0) of {
+        Some(v) -> v;
+        None -> ({ return 0; });
+    };
+    if (mock_active_depths[context] <= 0) return 0;
     return mock_context_callbacks[context_active_index(context, mock_active_depths[context] - 1)];
 }
 
 export void enter(i32 target) {
-    i32 context = context_slot(1);
-    if (context < 0) return;
+    i32 context = case context_slot(1) of {
+        Some(v) -> v;
+        None -> ({ return; });
+    };
     i32 depth = mock_active_depths[context];
     if (depth >= 8) {
         assert_fail("mock.nesting_capacity");
@@ -163,8 +176,11 @@ export void enter(i32 target) {
 }
 
 export void leave() {
-    i32 context = context_slot(0);
-    if (context < 0 || mock_active_depths[context] <= 0) {
+    i32 context = case context_slot(0) of {
+        Some(v) -> v;
+        None -> ({ assert_fail("mock.invalid_leave"); return; });
+    };
+    if (mock_active_depths[context] <= 0) {
         assert_fail("mock.invalid_leave");
         return;
     }
@@ -174,8 +190,10 @@ export void leave() {
 // `of` is a grammar keyword, so the parser lowers the public spelling
 // `mock.of(target)` to this exported implementation symbol.
 export TargetMock* target(i32 target) {
-    i32 slot = find_slot(target);
-    if (slot < 0) {
+    i32 slot = 0;
+    case find_slot(target) of {
+        Some(v) -> ({ slot = v; });
+        None -> ({
         slot = 0;
         while (slot < 8 && mock_targets[slot] != 0) slot = slot + 1;
         if (slot >= 8) {
@@ -186,7 +204,8 @@ export TargetMock* target(i32 target) {
         mock_modes[slot] = 1;
         mock_rule_counts[slot] = 0;
         mock_handles[slot].slot = slot;
-    }
+        });
+    };
     mock_modes[slot] = 1;
     return &mock_handles[slot];
 }
@@ -201,10 +220,14 @@ export TargetMock* spy(i32 fn) {
 // entry frame first, so recording may freely use normal call-clobbered ABI
 // registers. `calls` is exact; `called_with` searches all calls for the target.
 export void record(i32 a, i32 b, i32 c, i32 d, i32 e, i32 f) {
-    i32 context = context_slot(1);
-    if (context < 0) return;
-    i32 slot = find_slot(current_target());
-    if (slot < 0) return;
+    i32 context = case context_slot(1) of {
+        Some(v) -> v;
+        None -> ({ return; });
+    };
+    i32 slot = case find_slot(current_target()) of {
+        Some(v) -> v;
+        None -> ({ return; });
+    };
     i32 key = context_target_index(context, slot);
     
     if (mock_call_pool_count >= 1024) {
@@ -234,12 +257,14 @@ export void record(i32 a, i32 b, i32 c, i32 d, i32 e, i32 f) {
 }
 
 export i32 calls(i32 target) {
-    i32 slot = find_slot(target);
-    if (slot < 0) return 0;
+    i32 slot = case find_slot(target) of {
+        Some(v) -> v;
+        None -> ({ return 0; });
+    };
     i32 total = 0;
     i32 context = 0;
     while (context < 8) {
-        if (mock_context_used[context] != 0) {
+        if (mock_context_used[context]) {
             total = total + mock_call_counts[context_target_index(context, slot)];
         }
         context = context + 1;
@@ -254,8 +279,10 @@ export i32 called_with(i32 target, rest args) {
         assert_fail("mock.argument_capacity");
         return 0;
     }
-    i32 slot = find_slot(target);
-    if (slot < 0) return 0;
+    i32 slot = case find_slot(target) of {
+        Some(v) -> v;
+        None -> ({ return 0; });
+    };
     i32 context = 0;
     while (context < 8) {
         if (mock_context_used[context] == 0) {
@@ -299,7 +326,7 @@ export i32 called_with(i32 target, rest args) {
                 i32 actual = mock_call_args[current * 6 + 5];
                 if (matcher_matches(expected, actual) == 0) matched = 0;
             }
-            if (matched != 0) return 1;
+            if (matched) return 1;
             current = mock_call_next[current];
         }
         context = context + 1;
@@ -382,14 +409,19 @@ TargetRule* (TargetRule* self) call(i32 fn) {
 // r5-r7 plus the first three stack arguments become a..f here. A nonzero return means either
 // current_result() or current_callback() is valid; the latter takes precedence.
 export i32 dispatch(i32 a, i32 b, i32 c, i32 d, i32 e, i32 f) {
-    i32 context = context_slot(1);
-    if (context < 0) return 0;
+    i32 context = case context_slot(1) of {
+        Some(v) -> v;
+        None -> ({ return 0; });
+    };
     i32 depth = mock_active_depths[context];
     if (depth <= 0) return 0;
     i32 active = context_active_index(context, depth - 1);
     mock_context_callbacks[active] = 0;
-    i32 slot = find_slot(current_target());
-    if (slot < 0 || mock_modes[slot] == 0) return 0;
+    i32 slot = case find_slot(current_target()) of {
+        Some(v) -> v;
+        None -> ({ return 0; });
+    };
+    if (mock_modes[slot] == 0) return 0;
     i32 rule = mock_rule_counts[slot];
     while (rule != 0) {
         rule = rule - 1;
@@ -420,11 +452,11 @@ export i32 dispatch(i32 a, i32 b, i32 c, i32 d, i32 e, i32 f) {
             i32 expected = mock_rule_args[rule_arg_index(slot, rule, 5)];
             if (matcher_matches(expected, f) == 0) matched = 0;
         }
-        if (matched != 0 && mock_rule_callbacks[key] != 0) {
+        if (matched && mock_rule_callbacks[key] != 0) {
             mock_context_callbacks[active] = mock_rule_callbacks[key];
             return 1;
         }
-        if (matched != 0 && mock_rule_return_counts[key] != 0) {
+        if (matched && mock_rule_return_counts[key] != 0) {
             i32 cursor_key = context_rule_index(context, slot, rule);
             i32 cursor = mock_rule_cursors[cursor_key];
             i32 returns = mock_rule_return_counts[key];
@@ -442,8 +474,10 @@ export i32 dispatch(i32 a, i32 b, i32 c, i32 d, i32 e, i32 f) {
 // The generated entry invokes the original implementation only for an
 // unmatched Spy call. Mock mismatch is an assertion failure.
 export i32 should_call_original() {
-    i32 slot = find_slot(current_target());
-    if (slot < 0) return 0;
+    i32 slot = case find_slot(current_target()) of {
+        Some(v) -> v;
+        None -> ({ return 0; });
+    };
     return mock_modes[slot] == 2;
 }
 

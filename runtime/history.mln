@@ -1,5 +1,7 @@
 package mock;
 
+import { Option } from "../../MyStdLib/option.mln";
+
 // Caller-owned call history for one generated mock dispatcher. Args is the
 // compiler-generated packed argument struct; Ret is the target's scalar or
 // pointer return type. A call is begun before dispatching to a rule/original
@@ -29,11 +31,11 @@ export void call_history_init<Args, Ret>(
     history->capacity = capacity;
 }
 
-// Returns the zero-based record index, or -1 when the history is full.
+// Returns the zero-based record index, or None when the history is full.
 // `path` is an ABI-defined MockCallPath value supplied by generated glue.
-export i32 call_history_begin<Args, Ret>(CallHistory<Args, Ret>* history, Args args, i32 path) {
+export Option<i32> call_history_begin<Args, Ret>(CallHistory<Args, Ret>* history, Args args, i32 path) {
     if (history->count >= history->capacity) {
-        return -1;
+        return None;
     }
 
     i32 index = history->count;
@@ -44,7 +46,7 @@ export i32 call_history_begin<Args, Ret>(CallHistory<Args, Ret>* history, Args a
     stored_paths[index] = path;
     stored_complete[index] = 0;
     history->count = index + 1;
-    return index;
+    return Some(index);
 }
 
 // Marks a previously begun call as complete and stores its scalar/pointer
