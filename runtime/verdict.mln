@@ -1,6 +1,6 @@
 import testkit from "testkit.mln";
 
-// Runtime hook required by MyStdLib/assert.mln.  This remains intentionally
+// Runtime hook required by MyStdLib/testing/assert.mln.  This remains intentionally
 // non-exported so its link name is the bare assert_fail expected by MyStdLib.
 void assert_fail(char* reason) {
     testkit.fail(reason);

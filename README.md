@@ -3,7 +3,7 @@
 MyLangTestKit is the guest-side runtime used by `mytest`.  It is linked only
 into MyLang test builds; production binaries do not include it.
 
-The first ABI provides the verdict bridge required by `MyStdLib/assert.mln`:
+The first ABI provides the verdict bridge required by `MyStdLib/testing/assert.mln`:
 
 - `assert_fail(char*)` emits `TEST_FAIL:<reason>` and halts.
 - `testkit.pass(char*)` emits `TEST_PASS:<name>` and halts.

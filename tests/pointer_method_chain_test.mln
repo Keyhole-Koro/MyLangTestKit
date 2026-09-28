@@ -1,4 +1,4 @@
-import assert from "../../MyStdLib/assert.mln";
+import assert from "@std/testing/assert.mln";
 
 extern void __mlt_require_abi_v1();
 extern void testkit_pass(char* name);

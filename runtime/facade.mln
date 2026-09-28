@@ -1,6 +1,6 @@
 package mock;
 
-import { Option } from "../../MyStdLib/option.mln";
+import { Option } from "@std/core/option.mln";
 
 // Public, target-agnostic facade used by test sources. MyLangTester emits one
 // entry point per `of(target)` / `spy(target)` target and redirects direct

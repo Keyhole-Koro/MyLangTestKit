@@ -1,6 +1,6 @@
 package mock;
 
-import { Option } from "../../MyStdLib/option.mln";
+import { Option } from "@std/core/option.mln";
 
 // Caller-owned call history for one generated mock dispatcher. Args is the
 // compiler-generated packed argument struct; Ret is the target's scalar or
