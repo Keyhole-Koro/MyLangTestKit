@@ -93,7 +93,7 @@ export i32 call_history_return_at<Args, Ret>(CallHistory<Args, Ret>* history, i3
     }
 
     i32* stored_complete = history->complete;
-    if (stored_complete[index] == 0) {
+    if (!stored_complete[index]) {
         return 0;
     }
     Ret* stored_returns = history->returns;

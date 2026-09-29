@@ -285,7 +285,7 @@ export i32 called_with(i32 target, rest args) {
     };
     i32 context = 0;
     while (context < 8) {
-        if (mock_context_used[context] == 0) {
+        if (!mock_context_used[context]) {
             context = context + 1;
             continue;
         }
@@ -299,32 +299,32 @@ export i32 called_with(i32 target, rest args) {
             if (args.len > 0) {
                 i32 expected = args[0];
                 i32 actual = mock_call_args[current * 6 + 0];
-                if (matcher_matches(expected, actual) == 0) matched = 0;
+                if (!matcher_matches(expected, actual)) matched = 0;
             }
             if (args.len > 1) {
                 i32 expected = args[1];
                 i32 actual = mock_call_args[current * 6 + 1];
-                if (matcher_matches(expected, actual) == 0) matched = 0;
+                if (!matcher_matches(expected, actual)) matched = 0;
             }
             if (args.len > 2) {
                 i32 expected = args[2];
                 i32 actual = mock_call_args[current * 6 + 2];
-                if (matcher_matches(expected, actual) == 0) matched = 0;
+                if (!matcher_matches(expected, actual)) matched = 0;
             }
             if (args.len > 3) {
                 i32 expected = args[3];
                 i32 actual = mock_call_args[current * 6 + 3];
-                if (matcher_matches(expected, actual) == 0) matched = 0;
+                if (!matcher_matches(expected, actual)) matched = 0;
             }
             if (args.len > 4) {
                 i32 expected = args[4];
                 i32 actual = mock_call_args[current * 6 + 4];
-                if (matcher_matches(expected, actual) == 0) matched = 0;
+                if (!matcher_matches(expected, actual)) matched = 0;
             }
             if (args.len > 5) {
                 i32 expected = args[5];
                 i32 actual = mock_call_args[current * 6 + 5];
-                if (matcher_matches(expected, actual) == 0) matched = 0;
+                if (!matcher_matches(expected, actual)) matched = 0;
             }
             if (matched) return 1;
             current = mock_call_next[current];
@@ -430,27 +430,27 @@ export i32 dispatch(i32 a, i32 b, i32 c, i32 d, i32 e, i32 f) {
         i32 matched = 1;
         if (count > 0) {
             i32 expected = mock_rule_args[rule_arg_index(slot, rule, 0)];
-            if (matcher_matches(expected, a) == 0) matched = 0;
+            if (!matcher_matches(expected, a)) matched = 0;
         }
         if (count > 1) {
             i32 expected = mock_rule_args[rule_arg_index(slot, rule, 1)];
-            if (matcher_matches(expected, b) == 0) matched = 0;
+            if (!matcher_matches(expected, b)) matched = 0;
         }
         if (count > 2) {
             i32 expected = mock_rule_args[rule_arg_index(slot, rule, 2)];
-            if (matcher_matches(expected, c) == 0) matched = 0;
+            if (!matcher_matches(expected, c)) matched = 0;
         }
         if (count > 3) {
             i32 expected = mock_rule_args[rule_arg_index(slot, rule, 3)];
-            if (matcher_matches(expected, d) == 0) matched = 0;
+            if (!matcher_matches(expected, d)) matched = 0;
         }
         if (count > 4) {
             i32 expected = mock_rule_args[rule_arg_index(slot, rule, 4)];
-            if (matcher_matches(expected, e) == 0) matched = 0;
+            if (!matcher_matches(expected, e)) matched = 0;
         }
         if (count > 5) {
             i32 expected = mock_rule_args[rule_arg_index(slot, rule, 5)];
-            if (matcher_matches(expected, f) == 0) matched = 0;
+            if (!matcher_matches(expected, f)) matched = 0;
         }
         if (matched && mock_rule_callbacks[key] != 0) {
             mock_context_callbacks[active] = mock_rule_callbacks[key];

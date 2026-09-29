@@ -75,7 +75,7 @@ Rule<Args, Ret>* (ref Mock<Args, Ret> self) when() {
 }
 
 Rule<Args, Ret>* (Rule<Args, Ret>* self) ret(Ret value) {
-    if (return_sequence_push<Ret>(&self->returns, value) == 0) return (Rule<Args, Ret>*)0;
+    if (!return_sequence_push<Ret>(&self->returns, value)) return (Rule<Args, Ret>*)0;
     return self;
 }
 
@@ -105,8 +105,8 @@ i32 (ref Mock<Args, Ret> self) dispatch(Args args, Ret* out) {
 i32 (ref Mock<Args, Ret> self) dispatch_rule(i32 index, Args args, Ret* out) {
     if (self->mode == 0 || index < 0 || index >= self->rule_count) return 0;
     Rule<Args, Ret>* rule = self->rules + index;
-    if (rule->enabled == 0) return 0;
-    if (return_sequence_next<Ret>(&rule->returns, out) == 0) return 0;
+    if (!rule->enabled) return 0;
+    if (!return_sequence_next<Ret>(&rule->returns, out)) return 0;
     rule->hit_count = rule->hit_count + 1;
     case call_history_begin<Args, Ret>(self->history, args, 2) of {
         Some(call_index) -> call_history_complete<Args, Ret>(self->history, call_index, *out);
