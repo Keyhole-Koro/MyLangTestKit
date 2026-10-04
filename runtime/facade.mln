@@ -1,6 +1,7 @@
 package mock;
 
 import { Option } from "@std/core/option.mln";
+import { CodeAddress } from "@std/core/address.mln";
 
 // Public, target-agnostic facade used by test sources. MyLangTester emits one
 // entry point per `of(target)` / `spy(target)` target and redirects direct
@@ -22,15 +23,15 @@ export struct TargetRule {
 // A test that starts a scheduler supplies `set_context_provider` with a
 // function returning the current task identity. Without one, context zero
 // preserves the single-threaded behaviour of earlier TestKit releases.
-i32 mock_context_provider = 0;
+fn() -> i32 mock_context_provider = 0;
 i32 mock_context_ids[8];
 i32 mock_context_used[8];
-i32 mock_active_targets[64];
+CodeAddress mock_active_targets[64];
 i32 mock_active_depths[8];
 i32 mock_context_results[64];
-i32 mock_context_callbacks[64];
+CodeAddress mock_context_callbacks[64];
 
-i32 mock_targets[8];
+CodeAddress mock_targets[8];
 i32 mock_modes[8];
 i32 mock_rule_counts[8];
 i32 mock_rule_arg_counts[64];
@@ -38,8 +39,8 @@ i32 mock_rule_args[384];
 i32 mock_rule_return_counts[64];
 i32 mock_rule_returns[512];
 i32 mock_rule_cursors[512];
-i32 mock_rule_callbacks[64];
-i32 mock_matchers[8];
+CodeAddress mock_rule_callbacks[64];
+fn(i32) -> i32 mock_matchers[8];
 i32 mock_matcher_count = 0;
 // Calls are recorded per active context. We use a static pool allocator and
 // linked list to allow up to 1024 calls shared across all targets and contexts,
@@ -61,7 +62,7 @@ export i32 any() { return -2147483647; }
 // intercepted ABI word and returns nonzero to match. For a struct argument,
 // that word is its by-value buffer address, so a test can inspect fields
 // without declaring an Args wrapper.
-export i32 match(i32 predicate) {
+export i32 match(fn(i32) -> i32 predicate) {
     if (mock_matcher_count >= 8) {
         assert_fail("mock.matcher_capacity");
         return 0;
@@ -76,7 +77,7 @@ i32 matcher_matches(i32 expected, i32 actual) {
     if (expected == any()) return 1;
     i32 slot = -2147483600 - expected;
     if (slot >= 0 && slot < mock_matcher_count) {
-        i32 predicate = mock_matchers[slot];
+        fn(i32) -> i32 predicate = mock_matchers[slot];
         return predicate(actual);
     }
     return expected == actual;
@@ -92,7 +93,7 @@ i32 context_call_arg_index(i32 context, i32 slot, i32 call, i32 arg) {
 }
 i32 context_active_index(i32 context, i32 depth) { return context * 8 + depth; }
 
-Option<i32> find_slot(i32 target) {
+Option<i32> find_slot(CodeAddress target) {
     i32 index = 0;
     while (index < 8) {
         if (mock_targets[index] == target) { return Some(index); }
@@ -105,7 +106,9 @@ extern void assert_fail(char* reason);
 
 // Install a task identity provider before scheduling begins. The provider is
 // a plain function pointer so TestKit stays independent from any one kernel.
-export void set_context_provider(i32 provider) { mock_context_provider = provider; }
+export void set_context_provider(fn() -> i32 provider) {
+    mock_context_provider = provider;
+}
 
 i32 current_context_id() {
     if (mock_context_provider == 0) return 0;
@@ -130,16 +133,16 @@ Option<i32> context_slot(i32 create) {
     mock_context_ids[slot] = id;
     mock_active_depths[slot] = 0;
     mock_context_results[context_active_index(slot, 0)] = 0;
-    mock_context_callbacks[context_active_index(slot, 0)] = 0;
+    mock_context_callbacks[context_active_index(slot, 0)] = CodeAddress(0);
     return Some(slot);
 }
 
-export i32 current_target() {
+export CodeAddress current_target() {
     i32 context = case context_slot(0) of {
         Some(v) -> v;
-        None -> ({ return 0; });
+        None -> ({ return CodeAddress(0); });
     };
-    if (mock_active_depths[context] <= 0) return 0;
+    if (mock_active_depths[context] <= 0) return CodeAddress(0);
     return mock_active_targets[context_active_index(context, mock_active_depths[context] - 1)];
 }
 
@@ -152,16 +155,16 @@ export i32 current_result() {
     return mock_context_results[context_active_index(context, mock_active_depths[context] - 1)];
 }
 
-export i32 current_callback() {
+export CodeAddress current_callback() {
     i32 context = case context_slot(0) of {
         Some(v) -> v;
-        None -> ({ return 0; });
+        None -> ({ return CodeAddress(0); });
     };
-    if (mock_active_depths[context] <= 0) return 0;
+    if (mock_active_depths[context] <= 0) return CodeAddress(0);
     return mock_context_callbacks[context_active_index(context, mock_active_depths[context] - 1)];
 }
 
-export void enter(i32 target) {
+export void enter(CodeAddress target) {
     i32 context = case context_slot(1) of {
         Some(v) -> v;
         None -> ({ return; });
@@ -189,13 +192,13 @@ export void leave() {
 
 // `of` is a grammar keyword, so the parser lowers the public spelling
 // `mock.of(target)` to this exported implementation symbol.
-export TargetMock* target(i32 target) {
+export TargetMock* target(CodeAddress target) {
     i32 slot = 0;
     case find_slot(target) of {
         Some(v) -> ({ slot = v; });
         None -> ({
         slot = 0;
-        while (slot < 8 && mock_targets[slot] != 0) slot = slot + 1;
+        while (slot < 8 && mock_targets[slot] != CodeAddress(0)) slot = slot + 1;
         if (slot >= 8) {
             assert_fail("mock.target_capacity");
             return (TargetMock*)0;
@@ -210,7 +213,7 @@ export TargetMock* target(i32 target) {
     return &mock_handles[slot];
 }
 
-export TargetMock* spy(i32 fn) {
+export TargetMock* spy(CodeAddress fn) {
     TargetMock* handle = target(fn);
     if (handle != (TargetMock*)0) mock_modes[handle->slot] = 2;
     return handle;
@@ -256,7 +259,7 @@ export void record(i32 a, i32 b, i32 c, i32 d, i32 e, i32 f) {
     mock_call_counts[key] = mock_call_counts[key] + 1;
 }
 
-export i32 calls(i32 target) {
+export i32 calls(CodeAddress target) {
     i32 slot = case find_slot(target) of {
         Some(v) -> v;
         None -> ({ return 0; });
@@ -274,7 +277,7 @@ export i32 calls(i32 target) {
 
 // Match the supplied prefix of a recorded call. This lets callers verify
 // functions with zero through six word arguments without declaring Args.
-export i32 called_with(i32 target, rest args) {
+export i32 called_with(CodeAddress target, rest args) {
     if (args.len > 6) {
         assert_fail("mock.argument_capacity");
         return 0;
@@ -334,9 +337,9 @@ export i32 called_with(i32 target, rest args) {
     return 0;
 }
 
-export i32 times(i32 target, i32 expected) { return calls(target) == expected; }
-export i32 once(i32 target) { return times(target, 1); }
-export i32 never(i32 target) { return times(target, 0); }
+export i32 times(CodeAddress target, i32 expected) { return calls(target) == expected; }
+export i32 once(CodeAddress target) { return times(target, 1); }
+export i32 never(CodeAddress target) { return times(target, 0); }
 
 TargetRule* (TargetMock* self) when(rest args) {
     i32 slot = self->slot;
@@ -362,7 +365,7 @@ TargetRule* (TargetMock* self) when(rest args) {
         mock_rule_cursors[context_rule_index(context, slot, rule)] = 0;
         context = context + 1;
     }
-    mock_rule_callbacks[key] = 0;
+    mock_rule_callbacks[key] = CodeAddress(0);
     mock_rule_counts[slot] = rule + 1;
     mock_rule_handles[key].slot = slot;
     mock_rule_handles[key].rule = rule;
@@ -373,7 +376,7 @@ TargetRule* (TargetRule* self) ret(i32 value) {
     i32 key = rule_index(self->slot, self->rule);
     // A rule has one action.  A later `.ret(...)` deliberately replaces a
     // previously configured fake while still allowing chained return values.
-    mock_rule_callbacks[key] = 0;
+    mock_rule_callbacks[key] = CodeAddress(0);
     i32 count = mock_rule_return_counts[key];
     if (count >= 8) {
         assert_fail("mock.return_capacity");
@@ -393,7 +396,7 @@ TargetRule* (TargetRule* self) then_ret(i32 value) {
 // depend on DI. `fn` must have the same signature as the target. This includes
 // struct/array returns: the generated entry preserves their hidden r4 result
 // buffer. Use `.call(fake)` for those returns; `.ret(...)` stores one word.
-TargetRule* (TargetRule* self) call(i32 fn) {
+TargetRule* (TargetRule* self) call(CodeAddress fn) {
     i32 key = rule_index(self->slot, self->rule);
     mock_rule_return_counts[key] = 0;
     i32 context = 0;
@@ -416,7 +419,7 @@ export i32 dispatch(i32 a, i32 b, i32 c, i32 d, i32 e, i32 f) {
     i32 depth = mock_active_depths[context];
     if (depth <= 0) return 0;
     i32 active = context_active_index(context, depth - 1);
-    mock_context_callbacks[active] = 0;
+    mock_context_callbacks[active] = CodeAddress(0);
     i32 slot = case find_slot(current_target()) of {
         Some(v) -> v;
         None -> ({ return 0; });
@@ -452,7 +455,7 @@ export i32 dispatch(i32 a, i32 b, i32 c, i32 d, i32 e, i32 f) {
             i32 expected = mock_rule_args[rule_arg_index(slot, rule, 5)];
             if (!matcher_matches(expected, f)) matched = 0;
         }
-        if (matched && mock_rule_callbacks[key] != 0) {
+        if (matched && mock_rule_callbacks[key] != CodeAddress(0)) {
             mock_context_callbacks[active] = mock_rule_callbacks[key];
             return 1;
         }
@@ -490,18 +493,38 @@ export i32 call_original(rest args) {
         assert_fail("mock.argument_capacity");
         return 0;
     }
-    i32 fn = current_target();
-    if (fn == 0) {
+    CodeAddress target_address = current_target();
+    if (target_address == CodeAddress(0)) {
         assert_fail("mock.call_original.outside_fake");
         return 0;
     }
-    if (args.len == 0) return fn();
-    if (args.len == 1) return fn(args[0]);
-    if (args.len == 2) return fn(args[0], args[1]);
-    if (args.len == 3) return fn(args[0], args[1], args[2]);
-    if (args.len == 4) return fn(args[0], args[1], args[2], args[3]);
-    if (args.len == 5) return fn(args[0], args[1], args[2], args[3], args[4]);
-    return fn(args[0], args[1], args[2], args[3], args[4], args[5]);
+    if (args.len == 0) {
+        fn() -> i32 target0 = (fn() -> i32)target_address;
+        return target0();
+    }
+    if (args.len == 1) {
+        fn(i32) -> i32 target1 = (fn(i32) -> i32)target_address;
+        return target1(args[0]);
+    }
+    if (args.len == 2) {
+        fn(i32, i32) -> i32 target2 = (fn(i32, i32) -> i32)target_address;
+        return target2(args[0], args[1]);
+    }
+    if (args.len == 3) {
+        fn(i32, i32, i32) -> i32 target3 = (fn(i32, i32, i32) -> i32)target_address;
+        return target3(args[0], args[1], args[2]);
+    }
+    if (args.len == 4) {
+        fn(i32, i32, i32, i32) -> i32 target4 = (fn(i32, i32, i32, i32) -> i32)target_address;
+        return target4(args[0], args[1], args[2], args[3]);
+    }
+    if (args.len == 5) {
+        fn(i32, i32, i32, i32, i32) -> i32 target5 = (fn(i32, i32, i32, i32, i32) -> i32)target_address;
+        return target5(args[0], args[1], args[2], args[3], args[4]);
+    }
+    fn(i32, i32, i32, i32, i32, i32) -> i32 target6 =
+        (fn(i32, i32, i32, i32, i32, i32) -> i32)target_address;
+    return target6(args[0], args[1], args[2], args[3], args[4], args[5]);
 }
 
 export void unexpected(char* reason) { assert_fail(reason); }
