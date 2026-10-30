@@ -27,7 +27,7 @@ export struct Mock<Args, Ret> {
 // Keep this at receiver + two parameters. The current kernel ABI has three
 // register argument slots, and a Mock is deliberately fixed-capacity so the
 // test DSL never needs to depend on stack-passed arguments.
-void (ref Mock<Args, Ret> self) init(Rule<Args, Ret>* rules,
+void (borrow Mock<Args, Ret> self) init(Rule<Args, Ret>* rules,
                                      CallHistory<Args, Ret>* history) {
     self->mode = 1;
     self->rules = rules;
@@ -36,27 +36,27 @@ void (ref Mock<Args, Ret> self) init(Rule<Args, Ret>* rules,
     self->history = history;
 }
 
-void (ref Mock<Args, Ret> self) enable_mock() {
+void (borrow Mock<Args, Ret> self) enable_mock() {
     self->mode = 1;
 }
 
-void (ref Mock<Args, Ret> self) enable_spy() {
+void (borrow Mock<Args, Ret> self) enable_spy() {
     self->mode = 2;
 }
 
-void (ref Mock<Args, Ret> self) disable() {
+void (borrow Mock<Args, Ret> self) disable() {
     self->mode = 0;
 }
 
-i32 (ref Mock<Args, Ret> self) is_mock() {
+i32 (borrow Mock<Args, Ret> self) is_mock() {
     return self->mode == 1;
 }
 
-i32 (ref Mock<Args, Ret> self) is_spy() {
+i32 (borrow Mock<Args, Ret> self) is_spy() {
     return self->mode == 2;
 }
 
-Rule<Args, Ret>* (ref Mock<Args, Ret> self) add_rule() {
+Rule<Args, Ret>* (borrow Mock<Args, Ret> self) add_rule() {
     if (self->rule_count >= self->rule_capacity) return (Rule<Args, Ret>*)0;
     Rule<Args, Ret>* rule = self->rules + self->rule_count;
     rule->enabled = 1;
@@ -70,7 +70,7 @@ Rule<Args, Ret>* (ref Mock<Args, Ret> self) add_rule() {
 // facades generated from a target signature configure their matcher fields,
 // then delegate to this rule allocator. Keeping this zero-argument form is
 // useful for handwritten low-level tests and preserves the fluent chain.
-Rule<Args, Ret>* (ref Mock<Args, Ret> self) when() {
+Rule<Args, Ret>* (borrow Mock<Args, Ret> self) when() {
     return self.add_rule();
 }
 
@@ -86,7 +86,7 @@ Rule<Args, Ret>* (Rule<Args, Ret>* self) then_ret(Ret value) {
 // The compiler-generated facade invokes this only after matcher selection.
 // `remaining != 0` is intentional: VM relational operations are word based,
 // so a descending signed index must not be used as the loop predicate.
-i32 (ref Mock<Args, Ret> self) dispatch(Args args, Ret* out) {
+i32 (borrow Mock<Args, Ret> self) dispatch(Args args, Ret* out) {
     if (self->mode == 0) return 0;
     i32 remaining = self->rule_count;
     while (remaining != 0) {
@@ -102,7 +102,7 @@ i32 (ref Mock<Args, Ret> self) dispatch(Args args, Ret* out) {
 // Typed facades select a rule after evaluating their target-specific matcher
 // fields, then call this method. Keeping that selection out of `Rule` avoids a
 // user-visible Args struct while retaining one shared runtime for every target.
-i32 (ref Mock<Args, Ret> self) dispatch_rule(i32 index, Args args, Ret* out) {
+i32 (borrow Mock<Args, Ret> self) dispatch_rule(i32 index, Args args, Ret* out) {
     if (self->mode == 0 || index < 0 || index >= self->rule_count) return 0;
     Rule<Args, Ret>* rule = self->rules + index;
     if (!rule->enabled) return 0;
@@ -115,15 +115,15 @@ i32 (ref Mock<Args, Ret> self) dispatch_rule(i32 index, Args args, Ret* out) {
     return 1;
 }
 
-i32 (ref Mock<Args, Ret> self) call_count() {
+i32 (borrow Mock<Args, Ret> self) call_count() {
     return call_history_count<Args, Ret>(self->history);
 }
 
-i32 (ref Mock<Args, Ret> self) verify_times(i32 expected) {
+i32 (borrow Mock<Args, Ret> self) verify_times(i32 expected) {
     return self.call_count() == expected;
 }
 
-void (ref Mock<Args, Ret> self) clear_calls() {
+void (borrow Mock<Args, Ret> self) clear_calls() {
     self->history->count = 0;
     i32 remaining = self->rule_count;
     while (remaining != 0) {
@@ -133,7 +133,7 @@ void (ref Mock<Args, Ret> self) clear_calls() {
     }
 }
 
-void (ref Mock<Args, Ret> self) reset() {
+void (borrow Mock<Args, Ret> self) reset() {
     self->mode = 0;
     self->rule_count = 0;
     self.clear_calls();
