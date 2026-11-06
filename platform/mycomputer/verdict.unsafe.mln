@@ -1,14 +1,15 @@
 import debug from "@kernel/debug/debug.mln";
+import str from "@std/text/str.mln";
 import { halt_cpu } from "@kernel/arch/halt.masm";
 
 void __mlt_platform_pass(char* name) {
     debug.print("TEST_PASS:");
-    debug.println(name);
+    debug.println(str.from_c(name));
     halt_cpu();
 }
 
 void __mlt_platform_fail(char* reason) {
     debug.print("TEST_FAIL:");
-    debug.println(reason);
+    debug.println(str.from_c(reason));
     halt_cpu();
 }
