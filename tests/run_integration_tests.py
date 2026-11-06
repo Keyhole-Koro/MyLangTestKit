@@ -17,18 +17,18 @@ TESTER_ROOT = REPO_ROOT / "toolchain/MyLangTester"
 TESTER = TESTER_ROOT / "build/mytest"
 COMPILER = REPO_ROOT / "toolchain/MyLangCompiler/mlc"
 RUNTIME = [
-    KIT_ROOT / "runtime/abi.mln",
-    KIT_ROOT / "runtime/testkit.mln",
-    KIT_ROOT / "runtime/verdict.mln",
-    KIT_ROOT / "runtime/matcher.mln",
-    KIT_ROOT / "runtime/return_sequence.mln",
-    KIT_ROOT / "runtime/history.mln",
-    KIT_ROOT / "platform/mycomputer/verdict.mln",
+    KIT_ROOT / "runtime/abi.unsafe.mln",
+    KIT_ROOT / "runtime/testkit.unsafe.mln",
+    KIT_ROOT / "runtime/verdict.unsafe.mln",
+    KIT_ROOT / "runtime/matcher.unsafe.mln",
+    KIT_ROOT / "runtime/return_sequence.unsafe.mln",
+    KIT_ROOT / "runtime/history.unsafe.mln",
+    KIT_ROOT / "platform/mycomputer/verdict.unsafe.mln",
 ]
 
 
 def run_fixture(name: str, marker: str) -> None:
-    source = KIT_ROOT / "tests" / f"{name}.mln"
+    source = KIT_ROOT / "tests" / f"{name}.unsafe.mln"
     with tempfile.TemporaryDirectory(prefix=f"mylang-testkit-{name}-") as temp:
         temp_dir = Path(temp)
         image = temp_dir / f"{name}.mbin"
@@ -80,7 +80,7 @@ def run_redirect_fixture() -> None:
     if build_tester.returncode != 0:
         raise RuntimeError(f"facade_redirect: mytest build failed\n{build_tester.stdout}")
 
-    test = KIT_ROOT / "tests/facade_redirect.test.mln"
+    test = KIT_ROOT / "tests/facade_redirect.unsafe.test.mln"
     result = subprocess.run(
         [str(TESTER), str(test)],
         cwd=REPO_ROOT,
@@ -119,7 +119,7 @@ def run_callback_signature_failures() -> None:
             else:
                 name, expected_code, message = case
             result = subprocess.run(
-                [str(COMPILER), str(KIT_ROOT / f"tests/{name}.mln"), str(temp_dir / f"{name}.masm")],
+                [str(COMPILER), str(KIT_ROOT / f"tests/{name}.unsafe.mln"), str(temp_dir / f"{name}.masm")],
                 cwd=REPO_ROOT,
                 text=True,
                 stdout=subprocess.PIPE,
@@ -131,7 +131,7 @@ def run_callback_signature_failures() -> None:
 
 def run_unexpected_mock_diagnostic() -> None:
     """An unmatched Mock reports its target instead of a generic no-verdict."""
-    test = KIT_ROOT / "tests/unexpected_mock.test.mln"
+    test = KIT_ROOT / "tests/unexpected_mock.unsafe.test.mln"
     result = subprocess.run(
         [str(TESTER), str(test)], cwd=REPO_ROOT, text=True,
         stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
