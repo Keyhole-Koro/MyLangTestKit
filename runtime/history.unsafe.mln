@@ -23,12 +23,14 @@ export void call_history_init<Args, Ret>(
     i32* complete_storage,
     i32 capacity
 ) {
-    history->args = args_storage;
-    history->returns = return_storage;
-    history->paths = path_storage;
-    history->complete = complete_storage;
-    history->count = 0;
-    history->capacity = capacity;
+    *history = CallHistory<Args, Ret> {
+        args: args_storage,
+        returns: return_storage,
+        paths: path_storage,
+        complete: complete_storage,
+        count: 0,
+        capacity: capacity,
+    };
 }
 
 // Returns the zero-based record index, or None when the history is full.
