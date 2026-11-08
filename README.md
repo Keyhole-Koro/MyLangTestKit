@@ -129,19 +129,19 @@ assert.assert_true(mock.never(ssd.write_block), "no writes");
 ```
 
 `calls(target)` returns the exact total. `called_with(target, ...)` searches
-the latest sixteen calls and matches the supplied argument prefix (up to six
+every recorded call and matches the supplied argument prefix (up to six
 arguments); `mock.any()` and `mock.match(fn)` can be used in any supplied
 position. Call history stores ABI words, not deep copies: for a struct
 argument, `called_with` evaluates its predicate against the original buffer.
 Use a predicate during interception if the buffer may later be mutated.
 
 The intentionally bounded runtime supports eight targets, eight rules per
-target, eight stored returns per rule, eight predicate matchers, sixteen
-history entries per target **per context**, and six ABI-word arguments.
+target, eight stored returns per rule, eight predicate matchers, 1024 recorded
+calls shared by every target and context, and six ABI-word arguments.
 Exceeding a runtime capacity fails with a `TEST_FAIL:mock.*_capacity` verdict;
 source-visible argument limits are rejected by `E0105`. The active-target
 stack is likewise eight deep, and up to eight task contexts can be live in one
-test.
+test. The capacities are named at the top of `runtime/facade.unsafe.mln`.
 
 Configuration is test-global and must finish before tasks start. Activation,
 fake callbacks, stored-return cursors, and history are context-local. A normal
