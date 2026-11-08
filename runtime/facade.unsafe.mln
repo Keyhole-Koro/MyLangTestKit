@@ -351,6 +351,16 @@ export i32 times(CodeAddress target, i32 expected) { return calls(target) == exp
 export i32 once(CodeAddress target) { return times(target, 1); }
 export i32 never(CodeAddress target) { return times(target, 0); }
 
+// Drop a rule's configured returns and restart its sequence in every context.
+void clear_returns(i32 slot, i32 rule) {
+    mock_rule_return_counts[rule_index(slot, rule)] = 0;
+    i32 context = 0;
+    while (context < MAX_CONTEXTS) {
+        mock_rule_cursors[context_rule_index(context, slot, rule)] = 0;
+        context = context + 1;
+    }
+}
+
 TargetRule* (TargetMock* self) when(rest args) {
     i32 slot = self->slot;
     i32 rule = mock_rule_counts[slot];
@@ -369,12 +379,7 @@ TargetRule* (TargetMock* self) when(rest args) {
         mock_rule_args[rule_arg_index(slot, rule, index)] = args[index];
         index = index + 1;
     }
-    mock_rule_return_counts[key] = 0;
-    i32 context = 0;
-    while (context < MAX_CONTEXTS) {
-        mock_rule_cursors[context_rule_index(context, slot, rule)] = 0;
-        context = context + 1;
-    }
+    clear_returns(slot, rule);
     mock_rule_callbacks[key] = CodeAddress(0);
     mock_rule_counts[slot] = rule + 1;
     mock_rule_handles[key].slot = slot;
@@ -407,14 +412,8 @@ TargetRule* (TargetRule* self) then_ret(i32 value) {
 // struct/array returns: the generated entry preserves their hidden r4 result
 // buffer. Use `.call(fake)` for those returns; `.ret(...)` stores one word.
 TargetRule* (TargetRule* self) call(CodeAddress fn) {
-    i32 key = rule_index(self->slot, self->rule);
-    mock_rule_return_counts[key] = 0;
-    i32 context = 0;
-    while (context < MAX_CONTEXTS) {
-        mock_rule_cursors[context_rule_index(context, self->slot, self->rule)] = 0;
-        context = context + 1;
-    }
-    mock_rule_callbacks[key] = fn;
+    clear_returns(self->slot, self->rule);
+    mock_rule_callbacks[rule_index(self->slot, self->rule)] = fn;
     return self;
 }
 
