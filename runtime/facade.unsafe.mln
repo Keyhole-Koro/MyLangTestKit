@@ -88,9 +88,6 @@ i32 rule_arg_index(i32 slot, i32 rule, i32 arg) { return rule_index(slot, rule) 
 i32 rule_return_index(i32 slot, i32 rule, i32 value) { return rule_index(slot, rule) * 8 + value; }
 i32 context_target_index(i32 context, i32 target) { return context * 8 + target; }
 i32 context_rule_index(i32 context, i32 slot, i32 rule) { return context * 64 + rule_index(slot, rule); }
-i32 context_call_arg_index(i32 context, i32 slot, i32 call, i32 arg) {
-    return ((context * 8 + slot) * 16 + call) * 6 + arg;
-}
 i32 context_active_index(i32 context, i32 depth) { return context * 8 + depth; }
 
 Option<i32> find_slot(CodeAddress target) {
