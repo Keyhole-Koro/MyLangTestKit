@@ -1,4 +1,4 @@
-package mock;
+namespace mock;
 
 import { Option } from "@std/core/option.mln";
 import { CodeAddress } from "@std/core/address.mln";

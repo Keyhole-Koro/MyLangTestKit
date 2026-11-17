@@ -1,4 +1,4 @@
-package mock;
+namespace mock;
 
 // A rule owns one sequence.  It does not allocate from the heap, so mocks can
 // exercise the allocator itself.  Once consumed, the last return repeats.

@@ -1,4 +1,4 @@
-package testkit;
+namespace testkit;
 
 // Platform hooks supplied by exactly one TestKit platform adapter. Both
 // operations publish a structured verdict and stop execution on MyComputer,

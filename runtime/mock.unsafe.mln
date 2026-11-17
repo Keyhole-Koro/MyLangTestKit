@@ -1,4 +1,4 @@
-package mock;
+namespace mock;
 
 import { CallHistory, call_history_begin, call_history_complete, call_history_count } from "history.mln";
 import { ReturnSequence, return_sequence_init, return_sequence_next, return_sequence_push } from "return_sequence.mln";

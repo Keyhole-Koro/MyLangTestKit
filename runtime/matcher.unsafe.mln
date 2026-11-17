@@ -1,4 +1,4 @@
-package mock;
+namespace mock;
 
 // The compiler-generated mock dispatcher stores one of these for each
 // scalar/pointer argument.  The public mock.any()/mock.eq() DSL lowers to the
