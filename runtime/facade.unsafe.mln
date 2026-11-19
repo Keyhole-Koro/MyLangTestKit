@@ -200,9 +200,8 @@ export void leave() {
     mock_active_depths[context] = mock_active_depths[context] - 1;
 }
 
-// `of` is a grammar keyword, so the parser lowers the public spelling
-// `mock.of(target)` to this exported implementation symbol.
-export TargetMock* target(CodeAddress target) {
+// `mock.of(target)`: the rules of the function `target` while the test runs.
+export TargetMock* of(CodeAddress target) {
     i32 slot = 0;
     case find_slot(target) of {
         Some(v) -> ({ slot = v; });
@@ -224,7 +223,7 @@ export TargetMock* target(CodeAddress target) {
 }
 
 export TargetMock* spy(CodeAddress fn) {
-    TargetMock* handle = target(fn);
+    TargetMock* handle = of(fn);
     if (handle != (TargetMock*)0) mock_modes[handle->slot] = 2;
     return handle;
 }
