@@ -27,12 +27,23 @@ RUNTIME = [
 ]
 
 
+def run_command(command: list[str]) -> subprocess.CompletedProcess[str]:
+    """Run from the workspace root, capturing stdout and stderr together."""
+    return subprocess.run(
+        command,
+        cwd=REPO_ROOT,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+    )
+
+
 def run_fixture(name: str, marker: str) -> None:
     source = KIT_ROOT / "tests" / f"{name}.unsafe.mln"
     with tempfile.TemporaryDirectory(prefix=f"mylang-testkit-{name}-") as temp:
         temp_dir = Path(temp)
         image = temp_dir / f"{name}.mbin"
-        build = subprocess.run(
+        build = run_command(
             [
                 sys.executable,
                 str(BUILD),
@@ -44,21 +55,13 @@ def run_fixture(name: str, marker: str) -> None:
                 str(temp_dir / "build"),
                 "--entry",
                 "kernel_main",
-            ],
-            cwd=REPO_ROOT,
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
+            ]
         )
         if build.returncode != 0:
             raise RuntimeError(f"{name}: build failed\n{build.stdout}")
 
-        emulator = subprocess.run(
-            [str(EMU), "-i", str(image), "--headless", "--step", "100000"],
-            cwd=REPO_ROOT,
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
+        emulator = run_command(
+            [str(EMU), "-i", str(image), "--headless", "--step", "100000"]
         )
         if emulator.returncode != 0:
             raise RuntimeError(f"{name}: emulator exited {emulator.returncode}\n{emulator.stdout}")
@@ -70,24 +73,12 @@ def run_fixture(name: str, marker: str) -> None:
 
 def run_redirect_fixture() -> None:
     """Exercise the compiler, runner, linker and facade as one test build."""
-    build_tester = subprocess.run(
-        ["make", "-C", str(TESTER_ROOT), "all"],
-        cwd=REPO_ROOT,
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-    )
+    build_tester = run_command(["make", "-C", str(TESTER_ROOT), "all"])
     if build_tester.returncode != 0:
         raise RuntimeError(f"facade_redirect: mytest build failed\n{build_tester.stdout}")
 
     test = KIT_ROOT / "tests/facade_redirect.unsafe.test.mln"
-    result = subprocess.run(
-        [str(TESTER), str(test)],
-        cwd=REPO_ROOT,
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-    )
+    result = run_command([str(TESTER), str(test)])
     required = ("[PASS] spy_redirect", "[PASS] mock_sequences", "[PASS] callback_redirect",
                 "[PASS] spy callback delegates to original", "[PASS] void spy callback delegates to original",
                 "[PASS] aggregate mock callback forwards hidden result buffer",
@@ -122,12 +113,8 @@ def run_callback_signature_failures() -> None:
                 expected_code = "E0103"
             else:
                 name, expected_code, message = case
-            result = subprocess.run(
-                [str(COMPILER), str(KIT_ROOT / f"tests/{name}.unsafe.mln"), str(temp_dir / f"{name}.masm")],
-                cwd=REPO_ROOT,
-                text=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
+            result = run_command(
+                [str(COMPILER), str(KIT_ROOT / f"tests/{name}.unsafe.mln"), str(temp_dir / f"{name}.masm")]
             )
             if result.returncode == 0 or f"error[{expected_code}]" not in result.stdout or message not in result.stdout:
                 raise RuntimeError(f"{name}: expected signature error\n{result.stdout}")
@@ -136,10 +123,7 @@ def run_callback_signature_failures() -> None:
 def run_unexpected_mock_diagnostic() -> None:
     """An unmatched Mock reports its target instead of a generic no-verdict."""
     test = KIT_ROOT / "tests/unexpected_mock.unsafe.test.mln"
-    result = subprocess.run(
-        [str(TESTER), str(test)], cwd=REPO_ROOT, text=True,
-        stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-    )
+    result = run_command([str(TESTER), str(test)])
     if result.returncode == 0 or "TEST_FAIL:mock.unexpected:unconfigured_target" not in result.stdout:
         raise RuntimeError(f"unexpected_mock: expected target diagnostic\n{result.stdout}")
 
@@ -147,10 +131,7 @@ def run_unexpected_mock_diagnostic() -> None:
 def run_capacity_diagnostics() -> None:
     """Each exhausted facade capacity, and misuse, fails with its own reason."""
     test = KIT_ROOT / "tests/facade_capacity_fail.unsafe.test.mln"
-    result = subprocess.run(
-        [str(TESTER), str(test)], cwd=REPO_ROOT, text=True,
-        stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-    )
+    result = run_command([str(TESTER), str(test)])
     expected = ("rule capacity: TEST_FAIL:mock.rule_capacity",
                 "return capacity: TEST_FAIL:mock.return_capacity",
                 "matcher capacity: TEST_FAIL:mock.matcher_capacity",
