@@ -97,7 +97,8 @@ def run_redirect_fixture() -> None:
                 "[PASS] predicate matchers and verify helpers",
                 "[PASS] later rule takes precedence",
                 "[PASS] ret replaces configured fake",
-                "[PASS] final return repeats")
+                "[PASS] final return repeats",
+                "[PASS] context provider isolates return cursors")
     if result.returncode != 0 or not all(marker in result.stdout for marker in required):
         raise RuntimeError(f"facade_redirect: expected annotated tests to pass\n{result.stdout}")
 
