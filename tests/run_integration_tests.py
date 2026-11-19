@@ -94,7 +94,10 @@ def run_redirect_fixture() -> None:
                 "[PASS] aggregate spy falls back to original",
                 "[PASS] aggregate spy fake delegates to original",
                 "[PASS] nested mock restores outer call original target",
-                "[PASS] predicate matchers and verify helpers")
+                "[PASS] predicate matchers and verify helpers",
+                "[PASS] later rule takes precedence",
+                "[PASS] ret replaces configured fake",
+                "[PASS] final return repeats")
     if result.returncode != 0 or not all(marker in result.stdout for marker in required):
         raise RuntimeError(f"facade_redirect: expected annotated tests to pass\n{result.stdout}")
 
