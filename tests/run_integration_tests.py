@@ -144,6 +144,24 @@ def run_unexpected_mock_diagnostic() -> None:
         raise RuntimeError(f"unexpected_mock: expected target diagnostic\n{result.stdout}")
 
 
+def run_capacity_diagnostics() -> None:
+    """Each exhausted facade capacity, and misuse, fails with its own reason."""
+    test = KIT_ROOT / "tests/facade_capacity_fail.unsafe.test.mln"
+    result = subprocess.run(
+        [str(TESTER), str(test)], cwd=REPO_ROOT, text=True,
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+    )
+    expected = ("rule capacity: TEST_FAIL:mock.rule_capacity",
+                "return capacity: TEST_FAIL:mock.return_capacity",
+                "matcher capacity: TEST_FAIL:mock.matcher_capacity",
+                "nesting capacity: TEST_FAIL:mock.nesting_capacity",
+                "context capacity: TEST_FAIL:mock.context_capacity",
+                "call original outside fake: TEST_FAIL:mock.call_original.outside_fake",
+                "call capacity: TEST_FAIL:mock.call_capacity")
+    if result.returncode == 0 or not all(f"[FAIL] {line}" in result.stdout for line in expected):
+        raise RuntimeError(f"facade_capacity_fail: expected capacity diagnostics\n{result.stdout}")
+
+
 def main() -> int:
     run_fixture("verdict_test", "TEST_PASS:verdict_test")
     run_fixture("assert_fail_test", "TEST_FAIL:expected assertion failure")
@@ -153,6 +171,7 @@ def main() -> int:
     run_redirect_fixture()
     run_callback_signature_failures()
     run_unexpected_mock_diagnostic()
+    run_capacity_diagnostics()
     print("[PASS] MyLangTestKit ABI v1")
     return 0
 
