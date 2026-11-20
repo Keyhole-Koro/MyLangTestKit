@@ -1,0 +1,89 @@
+import mock from "../runtime/facade.mln";
+
+// Every case here must fail with the named TestKit diagnostic. The runner
+// checks each `<name>: TEST_FAIL:mock.<reason>` line.
+
+i32 capacity_target(i32 value) { return value + 1; }
+
+i32 recursive_target(i32 value) { return value; }
+
+i32 fake_recursive_target(i32 value) {
+    return recursive_target(value + 1);
+}
+
+i32 g_capacity_context = 0;
+
+i32 capacity_context() {
+    return g_capacity_context;
+}
+
+i32 accept_all(i32 value) { return 1; }
+
+/*@Test "rule capacity"*/
+void rule_capacity() {
+    i32 rule = 0;
+    while (rule < 9) {
+        mock.of(capacity_target).when(rule).ret(rule);
+        rule = rule + 1;
+    }
+}
+
+/*@Test "return capacity"*/
+void return_capacity() {
+    mock.of(capacity_target)
+        .when(1)
+        .ret(1)
+        .then_ret(2)
+        .then_ret(3)
+        .then_ret(4)
+        .then_ret(5)
+        .then_ret(6)
+        .then_ret(7)
+        .then_ret(8)
+        .then_ret(9);
+}
+
+/*@Test "matcher capacity"*/
+void matcher_capacity() {
+    i32 matcher = 0;
+    while (matcher < 9) {
+        mock.match(accept_all);
+        matcher = matcher + 1;
+    }
+}
+
+/*@Test "nesting capacity"*/
+void nesting_capacity() {
+    mock.of(recursive_target)
+        .when(mock.any())
+        .call(fake_recursive_target);
+    recursive_target(0);
+}
+
+/*@Test "context capacity"*/
+void context_capacity() {
+    mock.set_context_provider(capacity_context);
+    mock.spy(capacity_target);
+    i32 context = 0;
+    while (context < 9) {
+        g_capacity_context = context;
+        capacity_target(context);
+        context = context + 1;
+    }
+}
+
+/*@Test "call original outside fake"*/
+void call_original_outside_fake() {
+    mock.spy(capacity_target);
+    mock.call_original(1);
+}
+
+/*@Test "call capacity" { step: 5000000; }*/
+void call_capacity() {
+    mock.spy(capacity_target);
+    i32 call = 0;
+    while (call < 1025) {
+        capacity_target(call);
+        call = call + 1;
+    }
+}
