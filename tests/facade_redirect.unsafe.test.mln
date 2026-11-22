@@ -95,6 +95,19 @@ i32 fake_nested_outer(i32 value) {
     return mock.call_original(value) + nested;
 }
 
+i32 g_fake_static_calls = 0;
+
+i32 fake_static_word(i32 value) {
+    g_fake_static_calls = g_fake_static_calls + 1;
+    return 1000;
+}
+
+i32 g_test_context = 0;
+
+i32 test_context() {
+    return g_test_context;
+}
+
 i32 is_even(i32 value) { return value % 2 == 0; }
 
 i32 inspect_pair(Pair value) {
@@ -240,4 +253,63 @@ void predicate_matchers_and_verify_helpers() {
                        "predicate matcher can inspect aggregate argument fields");
     assert.assert_true(mock.called_with(inspect_pair, mock.match(pair_is_two_three)),
                        "history accepts the same aggregate predicate matcher");
+}
+
+/*@Test "later rule takes precedence"*/
+void later_rule_takes_precedence() {
+    mock.of(static_word).when(mock.any()).ret(1);
+    mock.of(static_word).when(5).ret(2);
+
+    assert.assert_true(static_word(5) == 2, "later overlapping rule is matched first");
+    assert.assert_true(static_word(6) == 1, "earlier rule still matches the rest");
+    assert.assert_true(mock.calls(static_word) == 2, "both calls are recorded");
+}
+
+/*@Test "ret replaces configured fake"*/
+void ret_replaces_configured_fake() {
+    mock.of(static_word)
+        .when(7)
+        .call(fake_static_word)
+        .ret(42);
+
+    assert.assert_true(static_word(7) == 42, "ret replaces the configured fake");
+    assert.assert_true(g_fake_static_calls == 0, "replaced fake is never called");
+}
+
+/*@Test "final return repeats"*/
+void final_return_repeats() {
+    mock.of(static_word)
+        .when(5)
+        .ret(77)
+        .then_ret(88);
+
+    assert.assert_true(static_word(5) == 77, "first configured return");
+    assert.assert_true(static_word(5) == 88, "last configured return");
+    assert.assert_true(static_word(5) == 88, "last return repeats once exhausted");
+    assert.assert_true(mock.times(static_word, 3), "every call is recorded");
+}
+
+/*@Test "context provider isolates return cursors"*/
+void context_provider_isolates_return_cursors() {
+    mock.set_context_provider(test_context);
+    mock.of(static_word)
+        .when(mock.any())
+        .ret(10)
+        .then_ret(20);
+
+    g_test_context = 0;
+    assert.assert_true(static_word(1) == 10, "context 0 starts its own sequence");
+    g_test_context = 1;
+    assert.assert_true(static_word(2) == 10, "context 1 starts its own sequence");
+    g_test_context = 0;
+    assert.assert_true(static_word(3) == 20, "context 0 advances its own cursor");
+    g_test_context = 1;
+    assert.assert_true(static_word(4) == 20, "context 1 advances its own cursor");
+
+    assert.assert_true(mock.calls(static_word) == 4, "calls sums every context");
+    g_test_context = 0;
+    assert.assert_true(mock.called_with(static_word, 4), "called_with finds another context's call");
+    g_test_context = 1;
+    assert.assert_true(mock.called_with(static_word, 1), "called_with searches every context");
+    assert.assert_true(!mock.called_with(static_word, 5), "called_with rejects an unrecorded call");
 }
